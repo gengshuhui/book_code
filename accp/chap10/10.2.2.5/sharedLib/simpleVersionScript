@@ -1,0 +1,14 @@
+LIBSIMPLE_1.0 {
+  global:
+   first_function; second_function;
+
+  local:
+   *;
+};
+LIBSIMPLE_1.1 {
+  global:
+   forth_function;
+
+  local:
+   *;
+};
