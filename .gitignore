@@ -1,5 +1,7 @@
 *.swp
 .DS_Store
 *.o
+*.elf
+*.exe
 *.obj
 *.log
