@@ -1,0 +1,1962 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.6.1 -->
+<title>An introduction to GCC and GCC’s plugins | Gabriele Serra’s Webpage</title>
+<meta name="generator" content="Jekyll v4.1.1" />
+<meta property="og:title" content="An introduction to GCC and GCC’s plugins" />
+<meta name="author" content="gabrieleserra" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="In the optic to enhance our embedded system’s security, having a compiler plugin feature is fundamental to add new features at compilation time without having to modify the compiler itself (and with minimum knowledge of compiler internals!) This article addresses GCC versions 9 and above on Ubuntu 20.04 LTS. I hope the guide can be enjoyed for other OS/GCC Version." />
+<meta property="og:description" content="In the optic to enhance our embedded system’s security, having a compiler plugin feature is fundamental to add new features at compilation time without having to modify the compiler itself (and with minimum knowledge of compiler internals!) This article addresses GCC versions 9 and above on Ubuntu 20.04 LTS. I hope the guide can be enjoyed for other OS/GCC Version." />
+<link rel="canonical" href="/blog/2020-08-27-an-introduction-to-gcc-and-gccs-plugins.html" />
+<meta property="og:url" content="/blog/2020-08-27-an-introduction-to-gcc-and-gccs-plugins.html" />
+<meta property="og:site_name" content="Gabriele Serra’s Webpage" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2020-08-27T09:39:15+00:00" />
+<script type="application/ld+json">
+{"@type":"BlogPosting","headline":"An introduction to GCC and GCC’s plugins","dateModified":"2020-08-27T09:39:15+00:00","datePublished":"2020-08-27T09:39:15+00:00","mainEntityOfPage":{"@type":"WebPage","@id":"/blog/2020-08-27-an-introduction-to-gcc-and-gccs-plugins.html"},"author":{"@type":"Person","name":"gabrieleserra"},"description":"In the optic to enhance our embedded system’s security, having a compiler plugin feature is fundamental to add new features at compilation time without having to modify the compiler itself (and with minimum knowledge of compiler internals!) This article addresses GCC versions 9 and above on Ubuntu 20.04 LTS. I hope the guide can be enjoyed for other OS/GCC Version.","url":"/blog/2020-08-27-an-introduction-to-gcc-and-gccs-plugins.html","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="shortcut icon" type="image/png" href="/assets/img/homepage.ico">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/98.css"><link type="application/atom+xml" rel="alternate" href="/feed.xml" title="Gabriele Serra's Webpage" /> 
+    <link rel="stylesheet" href="/assets/css/blog.css">
+  
+</head>
+<body>
+    <script type="text/javascript" src="/assets/js/jquery.min.js"></script>
+    <script type="text/javascript" src="/assets/js/main.js"></script>
+
+    <div class="windows-container">
+      <div class="form windows windows-form">
+          <header class="windows-header">
+              <span class="windows-icon">
+                  <img src="/assets/img/ie.png">
+              </span>
+              <span>Gabriele Serra&#39;s Webpage  - An introduction to GCC and GCC's plugins </span>
+              <span class="windows-button">
+                  <img src="/assets/img/close-icon.png">
+              </span>
+          </header>
+          <main class="form-content"><aside><ul class="tree-view">
+    <li>
+      <a href="#">Navbar</a>
+      <ul>
+        <li><a href="/">Home</a></li><li><a href="/blog/">Blog</a></li><li><a href="/projects/">Projects</a></li><li><a href="/publications/">Publications</a></li></ul>
+    </li>
+  </ul></aside><article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <div class="post-wrapper">
+
+    <header class="post-header">
+      <h1 class="post-title p-name" itemprop="name headline">An introduction to GCC and GCC&#39;s plugins</h1>
+      <p class="post-meta">
+        <time class="dt-published" datetime="2020-08-27T09:39:15+00:00" itemprop="datePublished">Aug 27, 2020
+        </time>
+        <span class="post-categories">
+        
+          <span class="post-category low-level">low-level</span>
+        
+          <span class="post-category c">c</span>
+        
+        </span>
+      
+      </p>
+      
+    </header>
+
+    <div class="post-content e-content" itemprop="articleBody">
+      <p>In the optic to enhance our embedded system’s security, having a compiler plugin feature is fundamental to add new features at compilation time without having to modify the compiler itself (and with minimum knowledge of compiler internals!) This article addresses GCC versions 9 and above on Ubuntu 20.04 LTS. I hope the guide can be enjoyed for other OS/GCC Version.</p>
+
+<ul>
+  <li><a href="#BriefintroductiontoGNUsGCC">1. Brief introduction to GNU’s GCC</a></li>
+  <li><a href="#Gettingstarted:HelloWorld">2. Getting started: Hello World!</a>
+    <ul>
+      <li><a href="#Environmentsetup">2.1. Environment setup</a></li>
+      <li><a href="#IntroductiontoGCCpluginAPIs">2.2. Introduction to GCC plugin APIs</a>
+        <ul>
+          <li><a href="#Pluginlicensecheck">2.2.1. Plugin license check</a></li>
+          <li><a href="#Plugininitialization">2.2.2. Plugin initialization</a></li>
+          <li><a href="#Plugincallbacks">2.2.3. Plugin callbacks</a></li>
+        </ul>
+      </li>
+      <li><a href="#CompilingandloadingpluginsontoGCC">2.3. Compiling and loading plugins onto GCC</a></li>
+      <li><a href="#Completehelloworldexample">2.4. Complete ‘hello world!’ example</a></li>
+    </ul>
+  </li>
+  <li><a href="#Instrumentingafunctionfordebuggingormonitoring">3. Instrumenting a function for debugging or monitoring</a>
+    <ul>
+      <li><a href="#InstrumentcodewithGCCcompilingoptions">3.1. Instrument code with GCC compiling options</a>
+        <ul>
+          <li><a href="#GCCoption:-finstrument">3.1.1. GCC option: -finstrument</a></li>
+          <li><a href="#GCCoption:-fpatchable">3.1.2. GCC option: -fpatchable</a></li>
+        </ul>
+      </li>
+      <li><a href="#Getyourhandsdirty:workingwithGCCinternals">3.2. Get your hands dirty: working with GCC internals</a>
+        <ul>
+          <li><a href="#OverviewonGCCcompilationprocess">3.2.1. Overview on GCC compilation process</a></li>
+          <li><a href="#Workingon:ASTGENERICGIMPLE">3.2.2. Working on: AST &amp; GENERIC/GIMPLE</a></li>
+        </ul>
+      </li>
+      <li><a href="#Instrumentcodewithlow-levelASM">3.3. Instrument code with low-level ASM</a>
+        <ul>
+          <li><a href="#IntroductiontoRTLlanguage">3.3.1. Introduction to RTL language</a></li>
+          <li><a href="#BuildsomethingwithRTL">3.3.2. Build something with RTL</a></li>
+          <li><a href="#InstrumentfunctionsusingRTL">3.3.3. Instrument functions using RTL</a></li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li><a href="#Documentation">4. Documentation</a>
+    <ul>
+      <li><a href="#Bibliographydocumentcited">4.1. Bibliography &amp; document cited</a></li>
+    </ul>
+  </li>
+  <li><a href="#Disclaimer">5. Disclaimer</a></li>
+</ul>
+
+<h2 id="1-brief-introduction-to-gnus-gcc">1. <a name="BriefintroductiontoGNUsGCC"></a>Brief introduction to GNU’s GCC</h2>
+
+<p>The GNU toolchain is a collection of tools and libraries produced in the context of the GNU project. In 1983, Richard Stallman announced the GNU project. Its goal was to give the community freedom and control in their use of computing devices by developing (collaboratively) free software and letting users modify, copy, and distribute it freely.</p>
+
+<p>The GNU toolchain was part of that software and today includes some of the most widespread tools used to develop and compile application such as:</p>
+<ul>
+  <li>GNU make: an automation tool for compilation and build</li>
+  <li>GNU Compiler Collection (GCC): a suite of compilers for several programming languages</li>
+  <li>GNU C Library (glibc): core C library including headers, libraries, and dynamic loader</li>
+  <li>GNU Binutils: a suite of tools including linker, assembler and other tools</li>
+  <li>GNU Debugger (GDB): a code debugging tool</li>
+</ul>
+
+<p>In particular, we will focus on GCC that, maybe, is the main component of the GNU toolchain. In practice, the GNU community placed a lot of effort into developing extensible and modular software to provide other people a way to contribute to the project adding functionalities. The straightforward way is via a plugin, namely providing a way to load a customizable module that interacts with the main module without modifying the project’s source code.</p>
+
+<p>Then, from GCC 4.5.0 (2010), plugin support is available. <a href="https://gcc.gnu.org/wiki/plugins">[1]</a></p>
+
+<p>Main advantages:</p>
+<ul>
+  <li>Shortens build and test for new features because GCC does not need to be re-compiled</li>
+  <li>Allows development and maintenance of features that can’t take place in GCC’s mainline</li>
+  <li>Simplifies developers’s work when they have minimal knowledge of compiler internals.</li>
+</ul>
+
+<h2 id="2-getting-started-hello-world">2. <a name="Gettingstarted:HelloWorld"></a>Getting started: Hello World!</h2>
+
+<p>The purpose of this section is to introduce you to the world of GCC plugins. The first time I approached to this stuff, I was really surprised because the amount of material available to start with was very poor. Furthermore, the GCC documentation about plugins was really not sufficient to start. Luckily I found an article in LWN that helped me start. It is not update but, if you want to build something for an older version of GCC could be a good starting point <a href="https://lwn.net/Articles/457543/">[2]</a>.</p>
+
+<h3 id="21-environment-setup">2.1. <a name="Environmentsetup"></a>Environment setup</h3>
+
+<p>A plugin is just a shared library that follows the convention posed by GCC.</p>
+
+<blockquote>
+  <p>From version 4.8. GCC is completely written in C++ <a href="http://www.h-online.com/news/item/GCC-4-8-completes-migration-to-C-1824539.html">[3]</a></p>
+</blockquote>
+
+<p>Then we will need to write C++ code. As a C developer, I was a bit scared; however, I found that:</p>
+
+<blockquote>
+  <p>“According to a post by Mark Mitchell on the GCC mailing list, however, advanced C++ features such as multiple inheritance, templates and exceptions are to be avoided – the source code of the GNU Compiler Collection is to remain easily understandable for C programmers and should only include constructs that don’t lend themselves to errors.” <a href="http://www.h-online.com/open/news/item/GCC-allows-C-to-some-degree-1012611.html">[4]</a> <a href="https://gcc.gnu.org/legacy-ml/gcc/2010-05/msg00705.html">[5]</a></p>
+</blockquote>
+
+<p>So, let’s start to develop! At first, you need all the libraries that contain all necessary symbols to build a GCC plugin. The easiest way to figure out where the include files are located is to run the following command in the console.</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span><span class="w"> </span>gcc <span class="nt">-print-file-name</span><span class="o">=</span>plugin
+<span class="go">/usr/lib/gcc/x86_64-linux-gnu/9/plugin
+</span></code></pre></div></div>
+
+<p>If this command simply prints the word “plugin”, “ you have no plugin dev libraries installed. Then get your exact GCC version and then install the libraries. In some setups, happens that you have only the folder plugin with .so files but not the development libraries. In that case, you have to install it.</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span><span class="w"> </span>gcc <span class="nt">--version</span>
+<span class="gp">$</span><span class="w"> </span><span class="nb">sudo </span>apt <span class="nb">install </span>gcc-X.X-plugin-dev
+</code></pre></div></div>
+
+<p>Let’s start creating a directory move inside it.</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span><span class="w"> </span><span class="nb">mkdir </span>gcc-instrumentation-plugin
+<span class="gp">$</span><span class="w"> </span><span class="nb">cd </span>gcc-instrumentation-plugin
+<span class="gp">$</span><span class="w"> </span><span class="nb">touch </span>main.cpp
+</code></pre></div></div>
+
+<h3 id="22-introduction-to-gcc-plugin-apis">2.2. <a name="IntroductiontoGCCpluginAPIs"></a>Introduction to GCC plugin APIs</h3>
+
+<p>The <code class="language-plaintext highlighter-rouge">gcc-plugin.h</code> must be the <strong>first</strong> GCC header to be included.</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;gcc-plugin.h&gt;
+</span></code></pre></div></div>
+
+<p>If your editor/IDE does not find the header file, it could be in <code class="language-plaintext highlighter-rouge">/usr/lib/gcc/x86_64-linux-gnu/7/plugin/include/</code>. Anyway, as pointed out before, you can run the command <code class="language-plaintext highlighter-rouge">gcc -print-file-name=plugin</code> to make GCC print the path for you, then search for the include folder.
+Clearly substitute your GCC version in the path. If you are using <em>Visual Studio Code</em>, you can add the directory in <code class="language-plaintext highlighter-rouge">includePath</code> to suppress include-errors.</p>
+
+<h4 id="221-plugin-license-check">2.2.1. <a name="Pluginlicensecheck"></a>Plugin license check</h4>
+
+<p>Every plugin should define the global symbol <code class="language-plaintext highlighter-rouge">plugin_is_GPL_compatible</code>. Indeed the GNU community is sensible to keep the software free and shareable, and the symbol serves to assert that the plugin is licensed under a GPL license. If the symbol does not exist, the compiler will output a fatal error with the following message:</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="go">fatal error: plugin name is not licensed under a GPL-compatible license
+name: undefined symbol: plugin_is_GPL_compatible
+compilation terminated
+</span></code></pre></div></div>
+
+<p>The symbol must be of integer type to match a forward declaration written in <code class="language-plaintext highlighter-rouge">gcc-plugin.h</code>. However, it does not need to be in any specific section because it is enough that the symbol exists in the global scope for GCC. So let’s define it at the beginning of our file.</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="n">plugin_is_GPL_compatible</span><span class="p">;</span>
+</code></pre></div></div>
+
+<h4 id="222-plugin-initialization">2.2.2. <a name="Plugininitialization"></a>Plugin initialization</h4>
+
+<p>Each plugin must export a function <code class="language-plaintext highlighter-rouge">plugin_init</code> called as soon as the plugin is loaded and is responsible for registering all callbacks and stuff required by the plugin. The function is called right before invoking the parser. The function has two arguments:</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// if init fails, must return non-zero, otherwise it should return 0</span>
+<span class="kt">int</span> <span class="nf">plugin_init</span> <span class="p">(</span> <span class="k">struct</span> <span class="n">plugin_name_args</span> <span class="o">*</span><span class="n">plugin_info</span><span class="p">,</span> <span class="c1">// plugin info</span>
+                  <span class="k">struct</span> <span class="n">plugin_gcc_version</span> <span class="o">*</span><span class="n">version</span><span class="p">);</span> <span class="c1">// GCC version</span>
+</code></pre></div></div>
+
+<p>Both structures, arguments of the function, are defined in the <code class="language-plaintext highlighter-rouge">gcc-plugin.h</code>. Let’s analyze them in details:</p>
+
+<p><code class="language-plaintext highlighter-rouge">struct plugin_name_args</code>:</p>
+<ul>
+  <li>Not user-filled, rather a read-only structure</li>
+  <li>It contains info that GCC got from the plugin</li>
+  <li>Useful to get arguments passed to the plugin via the command line (we will see better)</li>
+</ul>
+
+<p><code class="language-plaintext highlighter-rouge">struct plugin_gcc_version</code>:</p>
+<ul>
+  <li>It contains info about current GCC version, revision number and so on</li>
+  <li>Useful to ensure your plugin operates on the appropriate version of GCC</li>
+</ul>
+
+<p>Let’s extract them from the <code class="language-plaintext highlighter-rouge">.h</code> file:</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/* Object that keeps track of the plugin name and its arguments. */</span>
+<span class="k">struct</span> <span class="n">plugin_name_args</span>
+<span class="p">{</span>
+  <span class="kt">char</span> <span class="o">*</span><span class="n">base_name</span><span class="p">;</span>              <span class="cm">/* Name of the plugin (file w/o .so suffix) */</span>
+  <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">full_name</span><span class="p">;</span>        <span class="cm">/* Plugin path as specified with -fplugin=. */</span>
+  <span class="kt">int</span> <span class="n">argc</span><span class="p">;</span>                     <span class="cm">/* Num of args specified with -fplugin-arg- */</span>
+  <span class="k">struct</span> <span class="n">plugin_argument</span> <span class="o">*</span><span class="n">argv</span><span class="p">;</span> <span class="cm">/* Array of ARGC key-value pairs. */</span>
+  <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">version</span><span class="p">;</span>          <span class="cm">/* Version string provided by plugin. */</span>
+  <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">help</span><span class="p">;</span>             <span class="cm">/* Help string provided by plugin. */</span>
+<span class="p">}</span>
+
+<span class="cm">/* Represents the gcc version. Used to avoid using an incompatible plugin. */</span>
+<span class="k">struct</span> <span class="n">plugin_gcc_version</span>
+<span class="p">{</span>
+  <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">basever</span><span class="p">;</span>
+  <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">datestamp</span><span class="p">;</span>
+  <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">devphase</span><span class="p">;</span>
+  <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">revision</span><span class="p">;</span>
+  <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">configuration_arguments</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>Well, coming back to the ‘plugin_init’ function, the most straightforward way of implementing it is to use the <code class="language-plaintext highlighter-rouge">plugin_default_version_check</code>, which compares field by field two <code class="language-plaintext highlighter-rouge">plugin_gcc_version</code> structures.</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include "plugin-version.h"
+</span><span class="c1">// ...</span>
+
+<span class="cm">/** Returns 0 if initialization finishes successfully. */</span>
+<span class="kt">int</span> <span class="nf">plugin_init</span> <span class="p">(</span> <span class="k">struct</span> <span class="n">plugin_name_args</span> <span class="o">*</span><span class="n">plugin_info</span><span class="p">,</span>
+                  <span class="k">struct</span> <span class="n">plugin_gcc_version</span> <span class="o">*</span><span class="n">version</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">plugin_default_version_check</span> <span class="p">(</span><span class="n">version</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">gcc_version</span><span class="p">))</span>
+    <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The GCC version used to compile the plugin can be found in the symbol <code class="language-plaintext highlighter-rouge">gcc_version</code> defined in the header <code class="language-plaintext highlighter-rouge">plugin-version.h</code>. Of course, if you want a less strict check, you can implement your own comparison routine. We will stick for the simplest version.</p>
+
+<p>If <code class="language-plaintext highlighter-rouge">plugin_init</code> returns 1, you will experiment a <code class="language-plaintext highlighter-rouge">cc1: error: fail to initialize plugin</code> during the compilation of the target program.</p>
+
+<p>Furthermore, we can include some public information to developers that use our plugin using the <code class="language-plaintext highlighter-rouge">plugin_info</code> structure. In case the user asks for help (via <code class="language-plaintext highlighter-rouge">gcc --help</code>) or want to know the version (via <code class="language-plaintext highlighter-rouge">gcc --version</code>), the information present in the structure will be printed out.</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/* Additional information about the plugin. Used by --help and --version. */</span>
+<span class="k">struct</span> <span class="n">plugin_info</span>
+<span class="p">{</span>
+  <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">version</span><span class="p">;</span>
+  <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">help</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<h4 id="223-plugin-callbacks">2.2.3. <a name="Plugincallbacks"></a>Plugin callbacks</h4>
+
+<p>Callbacks are the simplest way to interact with GCC while it is doing its work! We can make GCC call one of our function when a specific event occurs. Here is the list of possible events that could trigger a callback.</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">enum</span> <span class="n">plugin_event</span>
+<span class="p">{</span>
+  <span class="n">PLUGIN_START_PARSE_FUNCTION</span><span class="p">,</span>      <span class="cm">/* Called before parsing the body of a func. */</span>
+  <span class="n">PLUGIN_FINISH_PARSE_FUNCTION</span><span class="p">,</span>     <span class="cm">/* After finishing parsing a function. */</span>
+  <span class="n">PLUGIN_PASS_MANAGER_SETUP</span><span class="p">,</span>        <span class="cm">/* To hook into pass manager. */</span>
+  <span class="n">PLUGIN_FINISH_TYPE</span><span class="p">,</span>               <span class="cm">/* After finishing parsing a type. */</span>
+  <span class="n">PLUGIN_FINISH_DECL</span><span class="p">,</span>               <span class="cm">/* After finishing parsing a declaration. */</span>
+  <span class="n">PLUGIN_FINISH_UNIT</span><span class="p">,</span>               <span class="cm">/* Useful for summary processing. */</span>
+  <span class="n">PLUGIN_PRE_GENERICIZE</span><span class="p">,</span>            <span class="cm">/* Allows to see low level AST in frontends. */</span>
+  <span class="n">PLUGIN_FINISH</span><span class="p">,</span>                    <span class="cm">/* Called before GCC exits. */</span>
+  <span class="n">PLUGIN_INFO</span><span class="p">,</span>                      <span class="cm">/* Information about the plugin. */</span>
+  <span class="n">PLUGIN_GGC_START</span><span class="p">,</span>                 <span class="cm">/* Called at start of GCC Garbage Collection. */</span>
+  <span class="n">PLUGIN_GGC_MARKING</span><span class="p">,</span>               <span class="cm">/* Extend the GGC marking. */</span>
+  <span class="n">PLUGIN_GGC_END</span><span class="p">,</span>                   <span class="cm">/* Called at end of GGC. */</span>
+  <span class="n">PLUGIN_REGISTER_GGC_ROOTS</span><span class="p">,</span>        <span class="cm">/* Register an extra GGC root table. */</span>
+  <span class="n">PLUGIN_ATTRIBUTES</span><span class="p">,</span>                <span class="cm">/* Called during attribute registration. */</span>
+  <span class="n">PLUGIN_START_UNIT</span><span class="p">,</span>                <span class="cm">/* Called before processing translation unit. */</span>
+  <span class="n">PLUGIN_PRAGMAS</span><span class="p">,</span>                   <span class="cm">/* Called during pragma registration. */</span>
+  <span class="n">PLUGIN_ALL_PASSES_START</span><span class="p">,</span>          <span class="cm">/* Called before first pass from all_passes. */</span>
+  <span class="n">PLUGIN_ALL_PASSES_END</span><span class="p">,</span>            <span class="cm">/* Called after last pass from all_passes. */</span>
+  <span class="n">PLUGIN_ALL_IPA_PASSES_START</span><span class="p">,</span>      <span class="cm">/* Called before first ipa pass. */</span>
+  <span class="n">PLUGIN_ALL_IPA_PASSES_END</span><span class="p">,</span>        <span class="cm">/* Called after last ipa pass. */</span>
+  <span class="n">PLUGIN_OVERRIDE_GATE</span><span class="p">,</span>             <span class="cm">/* Allows to override pass gate decision for current_pass. */</span>
+  <span class="n">PLUGIN_PASS_EXECUTION</span><span class="p">,</span>            <span class="cm">/* Called before executing a pass. */</span>
+  <span class="n">PLUGIN_EARLY_GIMPLE_PASSES_START</span><span class="p">,</span> <span class="cm">/* Called before subpasses of a GIMPLE_PASS in execute_ipa_pass_list. */</span>
+  <span class="n">PLUGIN_EARLY_GIMPLE_PASSES_END</span><span class="p">,</span>   <span class="cm">/* Called after subpasses of a GIMPLE_PASS in execute_ipa_pass_list. */</span>
+  <span class="n">PLUGIN_NEW_PASS</span><span class="p">,</span>                  <span class="cm">/* Called when a pass is first instantiated. */</span>
+  <span class="n">PLUGIN_INCLUDE_FILE</span><span class="p">,</span>              <span class="cm">/* Called when a file is #include-d or given via the #line directive. */</span>
+  <span class="n">PLUGIN_EVENT_FIRST_DYNAMIC</span>        <span class="cm">/* Dummy event used for indexing callback array.  */</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>I have used only a restricted subset of these events. However, I think they cover a lot of practical situations. Furthermore, plugins can also interact with the enumerator of events and generate new events dynamically. Honestly, I had’t tried yet, so please refer to the GCC documentation.</p>
+
+<p>Now the question is how to register how plugin to being called when one of these events occurs? In practice, we have to use the function <code class="language-plaintext highlighter-rouge">register_callback</code> (and the dual <code class="language-plaintext highlighter-rouge">unregister_callback</code> if we need to de-register our plugin).</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="nf">register_callback</span> <span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">plugin_name</span><span class="p">,</span>
+			                  <span class="kt">int</span> <span class="n">event</span><span class="p">,</span>
+                        <span class="n">plugin_callback_func</span> <span class="n">callback</span><span class="p">,</span>
+                        <span class="kt">void</span> <span class="o">*</span><span class="n">user_data</span>
+                        <span class="p">);</span>
+</code></pre></div></div>
+<p>where the arguments are:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">char *name</code>: The plugin name</li>
+  <li><code class="language-plaintext highlighter-rouge">int event</code> : The event code taken from the enum above</li>
+  <li><code class="language-plaintext highlighter-rouge">plugin_callback_func callback</code>: The function of the plugin that handles event</li>
+  <li><code class="language-plaintext highlighter-rouge">void *user_data</code>: Pointer to plugin-specific data passed as input to the function</li>
+</ul>
+
+<p>Things become a little more interesting when we analyze the type <code class="language-plaintext highlighter-rouge">plugin_callback_func</code> that is a pointer to a function representing the function type needed to be a callback routine candidate.</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/* Function type for a plugin callback routine.
+
+   GCC_DATA  - event-specific data provided by GCC
+   USER_DATA - plugin-specific data provided by the plugin  */</span>
+
+<span class="k">typedef</span> <span class="nf">void</span> <span class="p">(</span><span class="o">*</span><span class="n">plugin_callback_func</span><span class="p">)</span> <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">gcc_data</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">user_data</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>The problem here is that no one knows what <code class="language-plaintext highlighter-rouge">gcc_data</code> contains for each event and is not documented anywhere! The same is true for <code class="language-plaintext highlighter-rouge">user_data</code>. Except for a few events, you have to proceed to try debugging or seek the GCC internals. For several, I already had the answer you need!</p>
+
+<p>For our first example, we will register our plugin to the event <code class="language-plaintext highlighter-rouge">PLUGIN_INFO</code>, where the callback function should be <code class="language-plaintext highlighter-rouge">NULL</code>, and the <code class="language-plaintext highlighter-rouge">user_data</code> is the <code class="language-plaintext highlighter-rouge">plugin_info</code> structure.</p>
+
+<h3 id="23-compiling-and-loading-plugins-onto-gcc">2.3. <a name="CompilingandloadingpluginsontoGCC"></a>Compiling and loading plugins onto GCC</h3>
+
+<p>As I pointed out before, plugins are shared libraries. They are loaded by the compiler using <code class="language-plaintext highlighter-rouge">dlopen</code> on Linux (or the equivalent DLL open on Windows) and invoked when needed during the compilation process. Our reference OS is Ubuntu, so I will consider only <code class="language-plaintext highlighter-rouge">.so</code> libraries, but I hope won’t be a problem for those who use Windows.</p>
+
+<p>To obtain a suitable GCC plugin, you simply have to adhere to GCC APIs and compile it as a shared library. Ok, this is not true; when you need to register to GCC passes (we will see what they are), you have to take care of passing <code class="language-plaintext highlighter-rouge">-fno-rtti</code> option. I don’t remember even how I find it… for sure caused me a severe headache. <a href="https://gcc.gnu.org/legacy-ml/gcc-patches/2013-07/msg01258.html">[6]</a></p>
+
+<blockquote>
+  <p><code class="language-plaintext highlighter-rouge">-fno-rtti</code> disables generation of information about every class with virtual functions for use by the C++ runtime type identification features. If you don’t use those parts of the language, you can save some space by using this flag. GCC itself is built with -fno-rtti. Hence plugins that create passes will need to be built with RTTI disabled in order to link against gcc, or they will fail to load. <a href="https://gcc.gnu.org/onlinedocs/gcc-4.4.7/gcc/C_002b_002b-Dialect-Options.html">[7]</a></p>
+</blockquote>
+
+<p>In the example, at the end of the chapter, I will provide a ready-to-use makefile.</p>
+
+<p>Let’s go ahead. In practice, when we need to use a plugin, we have to inform GCC to load it using the option:</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="go">-fplugin=/path/to/lib.so -fplugin-arg-name-key1[=value1]
+</span></code></pre></div></div>
+
+<p>where the option <code class="language-plaintext highlighter-rouge">-fplugin</code> takes the path to the shared library with the extension. Also you can pass arguments to GCC using key-value pairs. Note that you can specify more than one plugin using multiple -fplugin arguments and, of course, multiple arguments to plugins.</p>
+
+<p>You can also provide the short name of the plugin (with no dots nor slashes) only if the plugin is placed in the plugin directory (and you can figure out the location of the default plugin directory using the command we have seen so far <code class="language-plaintext highlighter-rouge">gcc -print-file-name=plugin</code>).</p>
+
+<h3 id="24-complete-hello-world-example">2.4. <a name="Completehelloworldexample"></a>Complete ‘hello world!’ example</h3>
+
+<p>Great! Let’s write out our complete <code class="language-plaintext highlighter-rouge">main.cpp</code> to realize our “hello-world” example!</p>
+
+<blockquote>
+  <p>Here you can find the raw files: <a href="/assets/postdata/an-introduction-to-gcc-and-gccs-plugins/hello-world/">hello-world</a></p>
+</blockquote>
+
+<p><strong>main.cpp</strong></p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include "plugin-version.h"
+</span>
+<span class="kt">int</span> <span class="n">plugin_is_GPL_compatible</span><span class="p">;</span>
+
+<span class="cm">/* Additional information about the plugin. Used by --help and --version. */</span>
+<span class="k">static</span> <span class="k">struct</span> <span class="n">plugin_info</span> <span class="n">inst_plugin_info</span> <span class="o">=</span>
+<span class="p">{</span>
+  <span class="p">.</span><span class="n">version</span> <span class="o">=</span> <span class="s">"0.1"</span><span class="p">,</span>
+  <span class="p">.</span><span class="n">help</span> <span class="o">=</span> <span class="s">"Currently I am not able to help you!"</span><span class="p">,</span>
+<span class="p">};</span>
+
+<span class="cm">/* Represents the gcc version we need. Used to void using an incompatible plugin. */</span>
+<span class="k">static</span> <span class="k">struct</span> <span class="n">plugin_gcc_version</span> <span class="n">inst_plugin_ver</span> <span class="o">=</span>
+<span class="p">{</span>
+  <span class="p">.</span><span class="n">basever</span> <span class="o">=</span> <span class="s">"9.2.1"</span><span class="p">,</span>
+<span class="p">};</span>
+
+<span class="cm">/** Returns 0 if initialization finishes successfully. */</span>
+<span class="kt">int</span> <span class="nf">plugin_init</span> <span class="p">(</span> <span class="k">struct</span> <span class="n">plugin_name_args</span> <span class="o">*</span><span class="n">plugin_info</span><span class="p">,</span>
+                  <span class="k">struct</span> <span class="n">plugin_gcc_version</span> <span class="o">*</span><span class="n">version</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">strncmp</span><span class="p">(</span><span class="n">inst_plugin_ver</span><span class="p">.</span><span class="n">basever</span><span class="p">,</span> <span class="n">version</span><span class="o">-&gt;</span><span class="n">basever</span><span class="p">,</span> <span class="n">strlen</span><span class="p">(</span><span class="n">version</span><span class="o">-&gt;</span><span class="n">basever</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+
+  <span class="c1">// tell to GCC some info about the plugin</span>
+  <span class="n">register_callback</span><span class="p">(</span><span class="s">"inst_plugin"</span><span class="p">,</span> <span class="n">PLUGIN_INFO</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">inst_plugin_info</span><span class="p">);</span>
+
+  <span class="n">printf</span><span class="p">(</span><span class="s">"Hello world!</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+  
+  <span class="c1">// done!</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Then we need a target c program to compile with GCC and then to test our plugin! We can write an elementary program that does all but printing something to the standard output.</p>
+
+<p><strong>target.c</strong></p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;stdio.h&gt;
+</span>
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">"I'm a target C program.</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+  <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Finally, we can use a Makefile to compile our GCC plugin.
+(If you experiment a <code class="language-plaintext highlighter-rouge">missing separator</code> error, keep attention to tab-width)</p>
+
+<p><strong>Makefile</strong></p>
+<div class="language-makefile highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># The gcc used to compile our plugin (consider that is written in C++!)
+</span><span class="nv">HOST_GCC</span> <span class="o">=</span> g++
+
+<span class="c"># The gcc that will support our plugin 
+</span><span class="nv">TARGET_GCC</span> <span class="o">=</span> gcc
+
+<span class="c"># The name of the file we want to compile 
+</span><span class="nv">PLUGIN_SOURCE_FILES</span> <span class="o">=</span> main.cpp
+
+<span class="c"># Plugins directory of GCC
+</span><span class="nv">GCC_PLUGINS_DIR</span> <span class="o">=</span> <span class="nf">$(</span><span class="nb">shell</span> <span class="nv">$(TARGET_GCC)</span> <span class="nt">-print-file-name</span><span class="o">=</span>plugin<span class="nf">)</span>
+
+<span class="c"># GCC CPP flags (we need position-independent code and run-time type info support disabled)
+</span><span class="nv">CXXFLAGS</span><span class="o">+=</span> <span class="nt">-I</span><span class="nv">$(GCC_PLUGINS_DIR)</span>/include <span class="nt">-fPIC</span> <span class="nt">-fno-rtti</span>
+
+<span class="c"># our recipes
+</span><span class="nl">.PHONY</span><span class="o">:</span> <span class="nf">all clean test</span>
+
+<span class="nl">all</span><span class="o">:</span> <span class="nf">inst_plugin.so</span>
+
+<span class="nl">inst_plugin.so</span><span class="o">:</span> <span class="nf">$(PLUGIN_SOURCE_FILES)</span>
+	<span class="nv">$(HOST_GCC)</span> <span class="nt">-shared</span> <span class="nv">$(CXXFLAGS)</span> <span class="nv">$^</span> <span class="nt">-o</span> <span class="nv">$@</span>
+
+<span class="nl">test</span><span class="o">:</span> <span class="nf">inst_plugin.so</span>
+	gcc target.c <span class="nt">-fplugin</span><span class="o">=</span><span class="nf">$(</span><span class="nb">shell</span> <span class="nb">pwd</span><span class="nf">)</span>/inst_plugin.so <span class="nt">-o</span> bin
+
+<span class="nl">clean</span><span class="o">:</span> 
+	<span class="nb">rm</span> <span class="nt">-f</span> inst_plugin.so bin
+</code></pre></div></div>
+
+<p>Ok, let’s try to compile the target program with our brand new plugin.</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span><span class="w"> </span>make
+<span class="gp">$</span><span class="w"> </span>gcc target.c <span class="nt">-fplugin</span><span class="o">=</span><span class="sb">`</span><span class="nb">pwd</span><span class="sb">`</span>/inst_plugin.so <span class="nt">-o</span> bin
+<span class="go">Hello world! 
+</span></code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">Hello world!</code> will be printed out during compilation! Great!
+The same is valid if you ask for help or for GCC version, your define properties will be printed</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span><span class="w"> </span>gcc <span class="nt">-fplugin</span><span class="o">=</span><span class="sb">`</span><span class="nb">pwd</span><span class="sb">`</span>/inst_plugin.so <span class="nt">--verbose</span> <span class="nt">--help</span>
+<span class="c">...
+</span><span class="go">Versions of loaded plugins:
+ inst_plugin: 0.1
+Help for the loaded plugins:
+ inst_plugin:
+    Currently I am not able to help you!
+</span><span class="c">...
+</span></code></pre></div></div>
+
+<p>I have also provided a target <code class="language-plaintext highlighter-rouge">test</code> in the makefile to run <code class="language-plaintext highlighter-rouge">make test</code> and check the output of your plugin directly during the compilation of a target program. We have finished for this first “Hello world” example.</p>
+
+<p>If you arrived here and need something more, it means you are really interested in the topic. Let’s go ahead.</p>
+
+<h2 id="3-instrumenting-a-function-for-debugging-or-monitoring">3. <a name="Instrumentingafunctionfordebuggingormonitoring"></a>Instrumenting a function for debugging or monitoring</h2>
+
+<p>Now, let’s jump directly to our objective. We want to instrument the code we are compiling with a function on each function call. Reasons could be many, maybe we want to track the flow of execution of our program, perhaps we are facing a tricky bug, and we want to figure out what is going on, or maybe we just want to be sure our program is following the intended flow.</p>
+
+<p>We have lots of possible choices, we will start with the simplest one!</p>
+
+<h3 id="31-instrument-code-with-gcc-compiling-options">3.1. <a name="InstrumentcodewithGCCcompilingoptions"></a>Instrument code with GCC compiling options</h3>
+
+<p>At first, we could just take advantage of the options available when compiling with GCC. Actually, if we don’t need anything special, we could just stick with <code class="language-plaintext highlighter-rouge">-finstrument-functions</code> or <code class="language-plaintext highlighter-rouge">-fpatchable-function-entry</code>.</p>
+
+<h4 id="311-gcc-option--finstrument">3.1.1. <a name="GCCoption:-finstrument"></a>GCC option: -finstrument</h4>
+
+<p>This has been quoted directly from GCC documentation:</p>
+
+<blockquote>
+  <p><code class="language-plaintext highlighter-rouge">-finstrument-functions</code></p>
+
+  <p>Generate instrumentation calls for entry and exit to functions. Just after function entry and just before function exit, the following profiling functions are called with the address of the current function and its call site. (On some platforms, <code class="language-plaintext highlighter-rouge">__builtin_return_address</code> does not work beyond the current function, so the call site information may not be available to the profiling functions otherwise.)</p>
+
+  <p><code class="language-plaintext highlighter-rouge">void __cyg_profile_func_enter (void *this_fn, void *call_site);</code><br />
+ <code class="language-plaintext highlighter-rouge">void __cyg_profile_func_exit  (void *this_fn, void *call_site);</code></p>
+
+  <p>The first argument is the address of the start of the current function, which may be looked up exactly in the symbol table.</p>
+
+  <p>This instrumentation is also done for functions expanded inline in other functions. The profiling calls indicate where, conceptually, the inline function is entered and exited. This means that addressable versions of such functions must be available. If all your uses of a function are expanded inline, this may mean an additional expansion of code size. If you use extern inline in your C code, an addressable version of such functions must be provided. (This is normally the case anyway, but if you get lucky and the optimizer always expands the functions inline, you might have gotten away without providing static copies.)</p>
+
+  <p>A function may be given the attribute no_instrument_function, in which case this instrumentation is not done. This can be used, for example, for the profiling functions listed above, high-priority interrupt routines, and any functions from which the profiling functions cannot safely be called (perhaps signal handlers, if the profiling routines generate output or allocate memory).</p>
+</blockquote>
+
+<p>In practice, we can instrument each function of the target program. For each function call/return, the respective <code class="language-plaintext highlighter-rouge">__cyg_profile_func_*</code> will be called passing the address of the function called and the call site’s address. Let’s have a try, let’s write a <code class="language-plaintext highlighter-rouge">target.c</code> program.</p>
+
+<blockquote>
+  <p>Here you can find the raw files: <a href="/assets/postdata/an-introduction-to-gcc-and-gccs-plugins/instrument-1/">example-1</a></p>
+</blockquote>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;stdio.h&gt;
+</span>
+<span class="c1">// Note:</span>
+<span class="c1">// We need 'no_instrument_function' attribute on __cyg_profile_fun_*</span>
+
+<span class="c1">// called every time a function get called</span>
+<span class="n">__attribute__</span> <span class="p">((</span><span class="n">no_instrument_function</span><span class="p">))</span> <span class="kt">void</span> <span class="nf">__cyg_profile_func_enter</span> <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">this_fn</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">call_site</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">printf</span><span class="p">(</span><span class="s">"Entering in 0x%lx from 0x%lx...</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="p">(</span><span class="kt">unsigned</span> <span class="kt">long</span><span class="p">)</span><span class="n">this_fn</span><span class="p">,</span> <span class="p">(</span><span class="kt">unsigned</span> <span class="kt">long</span><span class="p">)</span><span class="n">call_site</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// called every time a function returns</span>
+<span class="n">__attribute__</span> <span class="p">((</span><span class="n">no_instrument_function</span><span class="p">))</span> <span class="kt">void</span> <span class="nf">__cyg_profile_func_exit</span>  <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">this_fn</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">call_site</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">printf</span><span class="p">(</span><span class="s">"Exiting from 0x%lx to 0x%lx...</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="p">(</span><span class="kt">unsigned</span> <span class="kt">long</span><span class="p">)</span><span class="n">this_fn</span><span class="p">,</span> <span class="p">(</span><span class="kt">unsigned</span> <span class="kt">long</span><span class="p">)</span><span class="n">call_site</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">void</span> <span class="nf">f1</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="k">return</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">"I'm a target C program.</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+  <span class="n">f1</span><span class="p">();</span>
+  <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Ok, the program above is a foolish example. But it can be enough to understand what are the issues that may arise when using this approach. Actually, we have a <code class="language-plaintext highlighter-rouge">main</code> function that calls the function <code class="language-plaintext highlighter-rouge">f1</code>.</p>
+
+<p>And then we wrote the two <code class="language-plaintext highlighter-rouge">__cyg_profile_fun_*</code> that will be called each function call/return. Of course, when <code class="language-plaintext highlighter-rouge">__cyg_profile_fun_*</code> are called, they trigger the mechanism again, so we need to protect them with <code class="language-plaintext highlighter-rouge">no_instrument_function</code>. Indeed, without the attribute, we can incur easily in a stack overflow.</p>
+
+<p>Let’s compile and run, including, for convenience, debugging symbols.</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span><span class="w"> </span>gcc target.c <span class="nt">-g</span> <span class="nt">-finstrument-functions</span> <span class="nt">-o</span> bin
+<span class="gp">$</span><span class="w"> </span>./bin
+<span class="gp">Entering in 0x5561cfe341ef from 0x7f02c8f231e3... #</span><span class="w"> </span>enter <span class="k">in </span>main
+<span class="go">I'm a target C program.
+</span><span class="gp">Entering in 0x5561cfe341cf from 0x5561cfe34236... #</span><span class="w"> </span>enter <span class="k">in </span>f1 from main
+<span class="gp">Exiting from 0x5561cfe341cf to 0x5561cfe34236...  #</span><span class="w"> </span><span class="nb">exit </span>from f1 to main
+<span class="gp">Exiting from 0x5561cfe341ef to 0x7f02c8f231e3...  #</span><span class="w"> </span><span class="nb">exit </span>from main
+</code></pre></div></div>
+
+<p>The profiling functions are placed after the prologue of the main and before the epilogue. Let’s dump the program assembly to understand what happened</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span><span class="w"> </span>objdump <span class="nt">-d</span> bin
+<span class="c">...
+</span><span class="go">Disassembly of section .text:
+</span><span class="c">...
+</span><span class="gp">0000000000001206 &lt;main&gt;</span>:
+<span class="c">...
+  ...
+</span><span class="go">  120a:       55                      push   %rbp
+  120b:       48 89 e5                mov    %rsp,%rbp
+  120e:       53                      push   %rbx
+</span><span class="gp">  120f:       48 83 ec 08             sub    $</span>0x8,%rsp
+<span class="c">  ...
+</span><span class="gp">  1224:       e8 40 ff ff ff          callq  1169 &lt;__cyg_profile_func_enter&gt;</span><span class="w">
+</span><span class="c">  ...
+</span><span class="gp">  1255:       e8 42 ff ff ff          callq  119c &lt;__cyg_profile_func_exit&gt;</span><span class="w">
+</span><span class="c">  ...
+</span><span class="go">  1261:       5d                      pop    %rbp
+  1262:       c3                      retq  
+</span><span class="c">  ...
+</span></code></pre></div></div>
+
+<p>This is what happens, at least on my workstation. It was easy to set up everything, writing two functions is enough, and we do not have to bother ourselves with plugins, GCC internals, strange compiling options, and stuff like that. But this is the only positive aspect, unfortunately!</p>
+
+<p>Indeed, in the example, we tracked the program flow only because it was an elementary target program. But imagine if you had thousands of lines of code and branches. Also, really it is missing a way to get information about the function we are analyzing. We have only an address, actually a virtual one! Let’s dump the symbol table of our binary.</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span><span class="w"> </span>readelf <span class="nt">-s</span> bin
+<span class="c">...
+</span><span class="go">Symbol table '.symtab' contains 74 entries:
+</span><span class="c">...
+    ...
+</span><span class="go">    64: 00000000000011cf    49 FUNC    GLOBAL DEFAULT   16 f1
+</span><span class="c">    ...
+</span><span class="go">    69: 00000000000011ef    87 FUNC    GLOBAL DEFAULT   16 main
+</span><span class="c">    ...
+</span><span class="go">    73: 000000000000119c    51 FUNC    GLOBAL DEFAULT   16 __cyg_profile_func_exit
+</span></code></pre></div></div>
+
+<p>Symbols are stored in the binary, starting from 0x0. The address got on the screen are virtual. In many embedded systems, there is no virtual memory, and this approach could simply work. But in modern OSes, address spaces are randomized for a new process. When we try to get the line from the address (we can use the <code class="language-plaintext highlighter-rouge">addr2line</code> tool), we simply get a bunch of <code class="language-plaintext highlighter-rouge">??</code>. Because, as stated above, the addresses printed are virtual.</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span><span class="w"> </span>addr2line <span class="nt">-f</span> <span class="nt">-e</span> bin 0x5561cfe341ef <span class="c"># VA: it is not valid for addr2line</span>
+<span class="go">??
+??:0
+</span><span class="gp">$</span><span class="w"> </span>addr2line <span class="nt">-f</span> <span class="nt">-e</span> bin 0x11ef
+<span class="go">main
+target.c:24
+</span></code></pre></div></div>
+
+<p>While the process is running, you can get the base address of the process in memory reading the memory map of the process</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span><span class="w"> </span><span class="nb">cat</span> /proc/&lt;pid&gt;/maps
+<span class="go">5561cfe33000-5561cfe34000 r--p 00000000 08:02 5378191                    .../bin
+5561cfe34000-5561cfe35000 r-xp 00001000 08:02 5378191                    .../bin
+5561cfe35000-5561cfe36000 r--p 00002000 08:02 5378191                    .../bin
+5561cfe36000-5561cfe37000 r--p 00002000 08:02 5378191                    .../bin
+5561cfe37000-5561cfe38000 rw-p 00003000 08:02 5378191                    .../bin
+5561d11b2000-5561d11d3000 rw-p 00000000 00:00 0                          [heap]
+7ff032b87000-7ff032bac000 r--p 00000000 08:02 2902                       /usr/lib/x86_64-linux-gnu/libc-2.30.so
+7ff032bac000-7ff032d24000 r-xp 00025000 08:02 2902                       /usr/lib/x86_64-linux-gnu/libc-2.30.so
+7ff032d24000-7ff032d6e000 r--p 0019d000 08:02 2902                       /usr/lib/x86_64-linux-gnu/libc-2.30.so
+7ff032d6e000-7ff032d71000 r--p 001e6000 08:02 2902                       /usr/lib/x86_64-linux-gnu/libc-2.30.so
+7ff032d71000-7ff032d74000 rw-p 001e9000 08:02 2902                       /usr/lib/x86_64-linux-gnu/libc-2.30.so
+7ff032d74000-7ff032d7a000 rw-p 00000000 00:00 0 
+7ff032d93000-7ff032d94000 r--p 00000000 08:02 2894                       /usr/lib/x86_64-linux-gnu/ld-2.30.so
+7ff032d94000-7ff032db6000 r-xp 00001000 08:02 2894                       /usr/lib/x86_64-linux-gnu/ld-2.30.so
+7ff032db6000-7ff032dbe000 r--p 00023000 08:02 2894                       /usr/lib/x86_64-linux-gnu/ld-2.30.so
+7ff032dbf000-7ff032dc0000 r--p 0002b000 08:02 2894                       /usr/lib/x86_64-linux-gnu/ld-2.30.so
+7ff032dc0000-7ff032dc1000 rw-p 0002c000 08:02 2894                       /usr/lib/x86_64-linux-gnu/ld-2.30.so
+7ff032dc1000-7ff032dc2000 rw-p 00000000 00:00 0 
+7ffeaf8a5000-7ffeaf8c6000 rw-p 00000000 00:00 0                          [stack]
+7ffeaf94d000-7ffeaf950000 r--p 00000000 00:00 0                          [vvar]
+7ffeaf950000-7ffeaf951000 r-xp 00000000 00:00 0                          [vdso]
+ffffffffff600000-ffffffffff601000 --xp 00000000 00:00 0                  [vsyscall]
+</span></code></pre></div></div>
+
+<p>The memory map of the process is composed of many blocks. Here below, I’ve reported a simplified version (obviously this is valid only for Linux!).</p>
+
+<p><img src="./images/memmap.png" alt="Memory map of Linux process" /></p>
+
+<p>Thanks to <a href="https://retis.sssup.it/~a.biondi/">Alessandro Biondi</a> for the image.</p>
+
+<p>We need the program image base address, identifiable with the name of our binary. Then with a simple subtraction, we can prove everything works.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>0x5561cfe341ef - # main virtual address 
+0x5561cfe33000 = # process base address
+0x0000000011ef   # main symbol location
+</code></pre></div></div>
+
+<p>Last note, in this example, the first thing that these functions do is call the other one but, keep attention, the call site is the address in which the function gets called and not the caller function address!</p>
+
+<p>In conclusion, this approach is straightforward to set up but has a lot of weaknesses.</p>
+
+<p><strong>PROS</strong></p>
+<ul>
+  <li>Simple to setup</li>
+</ul>
+
+<p><strong>CONS</strong></p>
+<ul>
+  <li>Not performance-oriented, you have two additional function calls for each function</li>
+  <li>It is difficult to modify the profiling function’s behavior concerning the function who received instrumentation.</li>
+  <li>It is really complicated to interact with code and to get function names or info.</li>
+  <li>The profiling functions must be present in the target program</li>
+  <li>Function calls always inserted after the prologue and before the epilogue</li>
+</ul>
+
+<h4 id="312-gcc-option--fpatchable">3.1.2. <a name="GCCoption:-fpatchable"></a>GCC option: -fpatchable</h4>
+
+<p>This has been quoted, again, directly from GCC documentation</p>
+
+<blockquote>
+  <p><code class="language-plaintext highlighter-rouge">-fpatchable-function-entry=N[,M]</code></p>
+
+  <p>Generate N NOPs right at the beginning of each function, with the function entry point before the Mth NOP. If M is omitted, it defaults to 0 so the function entry points to the address just at the first NOP. The NOP instructions reserve extra space which can be used to patch in any desired instrumentation at run time, provided that the code segment is writable. The amount of space is controllable indirectly via the number of NOPs; the NOP instruction used corresponds to the instruction emitted by the internal GCC back-end interface gen_nop. This behavior is target-specific and may also depend on the architecture variant and/or other compilation options.</p>
+
+  <p>For run-time identification, the starting addresses of these areas, which correspond to their respective function entries minus M, are additionally collected in the <code class="language-plaintext highlighter-rouge">__patchable_function_entries</code> section of the resulting binary.</p>
+
+  <p>Note that the value of <code class="language-plaintext highlighter-rouge">__attribute__ ((patchable_function_entry (N,M)))</code> takes precedence over command-line option <code class="language-plaintext highlighter-rouge">-fpatchable-function-entry=N,M</code>. This can &gt;be used to increase the area size or to remove it completely on a single function. If N=0, no pad location is recorded.</p>
+
+  <p>The NOP instructions are inserted at—and maybe before, depending on M—the function entry address, even before the prologue.</p>
+
+  <p>The maximum value of N and M is 65535.</p>
+</blockquote>
+
+<p>This is a bit simpler than the previous one. The explanation is more accessible, it is useful to “make space” before the function prologue to patch the function with some code. If we need to check the function behavior before the prologue, we can do it quickly.</p>
+
+<p>At our disposal, we have two parameters, N and M. N, which indicates the number of <code class="language-plaintext highlighter-rouge">NOPs</code> we want to insert before the function prologue while M indicates the displacement. Let’s try it with a simple target C program.</p>
+
+<blockquote>
+  <p>Here you can find the raw files: <a href="/assets/postdata/an-introduction-to-gcc-and-gccs-plugins/instrument-2/">example-2</a></p>
+</blockquote>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;stdio.h&gt;
+</span>
+<span class="kt">void</span> <span class="nf">f1</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="k">return</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">"I'm a target C program.</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+  <span class="n">f1</span><span class="p">();</span>
+  <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>We will compile in two manners, one with the patchable option and the other without.</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span><span class="w"> </span>gcc target.c <span class="nt">-g</span> <span class="nt">-fpatchable-function-entry</span><span class="o">=</span>10 <span class="nt">-o</span> bin_patchable
+<span class="gp">$</span><span class="w"> </span>gcc target.c <span class="nt">-g</span> <span class="nt">-o</span> bin
+<span class="gp">$</span><span class="w"> </span>objdump <span class="nt">-d</span> bin_patchable <span class="o">&gt;</span> dis_patchable
+<span class="gp">$</span><span class="w"> </span>objdump <span class="nt">-d</span> bin <span class="o">&gt;</span> dis
+</code></pre></div></div>
+
+<p>Ok, so let’s compare them. I will attach an image, hoping it would be more evident than a <code class="language-plaintext highlighter-rouge">diff</code>.</p>
+
+<p><img src="./images/comparison.png" alt="Comparison" /></p>
+
+<p>We can appreciate 10 <code class="language-plaintext highlighter-rouge">NOPs</code> added at the beginning of each function, leading to “patchable” code. Let’s try again using the M parameter.</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span><span class="w"> </span>gcc target.c <span class="nt">-g</span> <span class="nt">-fpatchable-function-entry</span><span class="o">=</span>10,5 <span class="nt">-o</span> bin_patchable
+<span class="gp">$</span><span class="w"> </span>gcc target.c <span class="nt">-g</span> <span class="nt">-o</span> bin
+</code></pre></div></div>
+
+<p><img src="./images/comparison_shifted.png" alt="Comparison" /></p>
+
+<p>Also, 10 <code class="language-plaintext highlighter-rouge">NOPs</code> were added but shifted up by 5, then modifying the functions placed before. Although the mechanism is simple, personally, I think it leaves a poor control of what happens actually.</p>
+
+<p><strong>PROS</strong></p>
+<ul>
+  <li>Simple to setup</li>
+  <li>Good flexibility, you are free to place a variable number of NOPs and shift them</li>
+  <li>Performance-oriented cause you can patch assembly directly</li>
+</ul>
+
+<p><strong>CONS</strong></p>
+<ul>
+  <li>Need a tool to patch the binary</li>
+  <li>NOPs are added only at the beginning of the function</li>
+</ul>
+
+<h3 id="32-get-your-hands-dirty-working-with-gcc-internals">3.2. <a name="Getyourhandsdirty:workingwithGCCinternals"></a>Get your hands dirty: working with GCC internals</h3>
+
+<h4 id="321-overview-on-gcc-compilation-process">3.2.1. <a name="OverviewonGCCcompilationprocess"></a>Overview on GCC compilation process</h4>
+
+<blockquote>
+  <p>Part of this section was built using material that I have found during my research on GCC internals and I want to say thanks to original authors and give them credits.</p>
+  <ul>
+    <li><em>Sangwan Kwon</em> - An Overview of GCC <a href="http://bitboom.github.io/an-overview-of-gcc">[8]</a></li>
+    <li><em>Pop Sébastian</em> - AST representation in GCC <a href="http://icps.u-strasbg.fr/~pop/gcc-ast.html">[9]</a></li>
+    <li><em>Jens Vankeirsbilck</em> - CFED GCC Plugin <a href="https://github.com/MGroupKULeuvenBrugesCampus/CFED_Plugin">[10]</a></li>
+    <li><em>Uday Khedker</em> - Introduction to RTL <a href="https://www.cse.iitb.ac.in/~uday/courses/cs715-09/gcc-rtl.pdf">[11]</a></li>
+  </ul>
+</blockquote>
+
+<p>For sure, we have discovered that GCC’s options are powerful but, at the same time, not enough if we need flexibility and performance. We need to understand something about GCC internals to exploit the power of GCC plugins. We will start from the basis.</p>
+
+<p>GCC (and, I think, almost all compilers) works analyzing code in subsequent phases called passes. At each pass, the compiler does some action, such as abstracting the representation of a program, optimizing data structures, etc. GCC organizes its compilation phase in several passes<a href="https://gcc.gnu.org/onlinedocs/gccint/Passes.html">[12]</a></p>
+
+<ul>
+  <li><strong>Parsing pass</strong>: The language front end turns text into bits.</li>
+  <li><strong>Gimplification pass</strong>: The bits are turned into something we can optimize.</li>
+  <li><strong>IPA passes</strong>: Inter-procedural optimizations.</li>
+  <li><strong>Tree SSA passes</strong>: Optimizations on a high-level representation.</li>
+  <li><strong>RTL passes</strong>: Optimizations on a low-level representation.</li>
+</ul>
+
+<p>I am all but an expert in this field, so if you want to dive deeper into the argument, refer to the GCC documentation. For our purposes, it is enough to check only some aspects.</p>
+
+<p>Talking simpler, we can say that all compilers include three macro-components: a front-end, a middle-end, and a back-end. The front-end macro-component considers all the things about the target program’s language while the back-end deals with the target architecture.</p>
+
+<p><img src="images/gcc.jpg" alt="GCC Passes" /></p>
+
+<p>In practice, GCC analyzes the target program’s code, visualizing it as an abstract tree, and then it builds a representation using GENERIC/GIMPLE. Then, it examines the GIMPLE abstraction trying to operate some optimizations such as inlining functions. Then it performs the RTL pass where it works on the low-level representation of the program (RTL stands for register transfer layout). RTL is the way GCC uses to map GIMPLE code to the register of the machine.</p>
+
+<p><img src="./images/gcc-com-proc.png" alt="GCC Compilation process" /></p>
+
+<p>As a consequence, with our plugin, we can operate mainly in two way:</p>
+<ul>
+  <li>before or after the GIMPLE pass if we want to interact with the abstract representation letting GCC generate the low-level code</li>
+  <li>at the RTL pass if we are worried about performance or we need to operate on the low-level representation</li>
+</ul>
+
+<p>Basically, we will see both approaches, trying to get the best of both.</p>
+
+<h4 id="322-working-on-ast--genericgimple">3.2.2. <a name="Workingon:ASTGENERICGIMPLE"></a>Working on: AST &amp; GENERIC/GIMPLE</h4>
+
+<p>AST (Abstract Syntax Trees) are intermediate representations produced by the GCC front-end. The purpose of GENERIC is to provide a language-independent way of representing an entire function as a tree. Actually, <code class="language-plaintext highlighter-rouge">tree</code> is the central data structure used by GCC in its internal representation of a target program. The <code class="language-plaintext highlighter-rouge">tree</code>, obviously, is composed of children nodes of type <code class="language-plaintext highlighter-rouge">tree</code>. Basically, a <code class="language-plaintext highlighter-rouge">tree</code> is a C pointer type that points to different varieties’ object.</p>
+
+<p><img src="./images/ast-generic-representation.png" alt="AST" /></p>
+
+<p>The image above shows what means represent a function with a <code class="language-plaintext highlighter-rouge">tree</code>. Each ellipse represents a node of the tree, described using GENERIC. Let’s suppose we want to focus on the tree structure of a function.</p>
+
+<p><img src="./images/function-decl.png" alt="Function declaration" /></p>
+
+<p>Here I have reported some examples taken from the sources I have linked above. The first is the declaration of a function.</p>
+
+<p><img src="./images/compound-stmt.png" alt="Compound statement" /></p>
+
+<p>The body is a tree too composed, again, of tree nodes.</p>
+
+<p><img src="./images/plus-expr.png" alt="Expression" /></p>
+
+<p>The last example refers to an expression.</p>
+
+<blockquote>
+  <p>These images are taken from an article written in 2002. Take these images more as examples than reference because many things have been changed over the years.</p>
+</blockquote>
+
+<p>And then what is GIMPLE?</p>
+
+<blockquote>
+  <p>GIMPLE is a three-address representation derived from GENERIC by breaking down GENERIC expressions into tuples of no more than 3 operands<a href="https://gcc.gnu.org/onlinedocs/gccint/GIMPLE.html">[7]</a></p>
+</blockquote>
+
+<p>I won’t say a lot more, let’s try to implement something. For this example, the idea is simple: I want to register a <code class="language-plaintext highlighter-rouge">profiled</code> attribute. When the attribute is attached to a function, the function will be profiled, calling an <code class="language-plaintext highlighter-rouge">__inst_profile</code> function.</p>
+
+<p>Here we can see much useful stuff that can be reused to implement really complex compilation behavior.</p>
+
+<blockquote>
+  <p>Here you can find the raw files: <a href="/assets/postdata/an-introduction-to-gcc-and-gccs-plugins/instrument-3/">example-3</a></p>
+</blockquote>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;gcc-plugin.h&gt;
+#include &lt;tree.h&gt;
+#include &lt;gimple.h&gt;
+#include &lt;tree-pass.h&gt;
+#include &lt;gimple-iterator.h&gt;
+#include &lt;stringpool.h&gt;
+#include &lt;attribs.h&gt;
+</span>
+<span class="cm">/**
+ * When 1 enables verbose printing
+ */</span>
+<span class="cp">#define DEBUG               1
+</span>
+<span class="cm">/**
+ * Name of the function called to profile code
+ */</span>
+<span class="cp">#define FUNCTION_NAME       "__inst_profile"
+</span>
+<span class="cm">/**
+ * Name of the attribute used to instrument a function
+ */</span>
+<span class="cp">#define ATTRIBUTE_NAME      "profiled"
+</span>
+<span class="cm">/**
+ * Name of this plugin
+ */</span>
+<span class="cp">#define PLUGIN_NAME         "inst_plugin"
+</span>
+<span class="cm">/**
+ * Version of this plugin
+ */</span>
+<span class="cp">#define PLUGIN_VERSION      "0.1"
+</span>
+<span class="cm">/**
+ * Help/usage string for the plugin
+ */</span>
+<span class="cp">#define PLUGIN_HELP         "Usage: registers an attribute " ATTRIBUTE_NAME
+</span>
+<span class="cm">/**
+ * Required GCC version
+ */</span>
+<span class="cp">#define PLUGIN_GCC_BASEV    "9.2.1"
+</span>
+<span class="c1">// -----------------------------------------------------------------------------</span>
+<span class="c1">// GCC PLUGIN SETUP (BASIC INFO / LICENSE / REQUIRED VERSION)</span>
+<span class="c1">// -----------------------------------------------------------------------------</span>
+
+<span class="kt">int</span> <span class="n">plugin_is_GPL_compatible</span><span class="p">;</span>
+
+<span class="cm">/**
+ * Additional information about the plugin. Used by --help and --version
+ */</span>
+<span class="k">static</span> <span class="k">struct</span> <span class="n">plugin_info</span> <span class="n">inst_plugin_info</span> <span class="o">=</span>
+<span class="p">{</span>
+  <span class="p">.</span><span class="n">version</span>  <span class="o">=</span> <span class="n">PLUGIN_VERSION</span><span class="p">,</span>
+  <span class="p">.</span><span class="n">help</span>     <span class="o">=</span> <span class="n">PLUGIN_HELP</span><span class="p">,</span>
+<span class="p">};</span>
+
+<span class="cm">/**
+ * Represents the gcc version we need. Used to void using an incompatible plugin 
+ */</span>
+<span class="k">static</span> <span class="k">struct</span> <span class="n">plugin_gcc_version</span> <span class="n">inst_plugin_ver</span> <span class="o">=</span>
+<span class="p">{</span>
+  <span class="p">.</span><span class="n">basever</span>  <span class="o">=</span> <span class="n">PLUGIN_GCC_BASEV</span><span class="p">,</span>
+<span class="p">};</span>
+
+<span class="c1">// -----------------------------------------------------------------------------</span>
+<span class="c1">// GCC EXTERNAL DECLARATION</span>
+<span class="c1">// -----------------------------------------------------------------------------</span>
+
+<span class="cm">/**
+ * Takes a tree node and returns the identifier string
+ * @see https://gcc.gnu.org/onlinedocs/gccint/Identifiers.html
+ */</span>
+<span class="cp">#define FN_NAME(tree_fun) IDENTIFIER_POINTER (DECL_NAME (tree_fun))
+</span>
+<span class="cm">/**
+ * Takes a tree node and returns the identifier string length
+ * @see https://gcc.gnu.org/onlinedocs/gccint/Identifiers.html
+ */</span>
+<span class="cp">#define FN_NAME_LEN(tree_fun) IDENTIFIER_LENGTH (DECL_NAME (tree_fun))
+</span>
+<span class="cm">/**
+ * Print GIMPLE statement G to FILE using SPC indentation spaces and FLAGS
+ * @note Makes use of pp_gimple_stmt_1
+ * @see Declared in gimple-pretty-print.h
+ * @see Flags are listed in dumpfile.h
+ */</span>
+<span class="k">extern</span> <span class="kt">void</span> <span class="nf">print_gimple_stmt</span><span class="p">(</span><span class="kt">FILE</span> <span class="o">*</span> <span class="n">file</span><span class="p">,</span> <span class="n">gimple</span><span class="o">*</span> <span class="n">g</span><span class="p">,</span> <span class="kt">int</span> <span class="n">spc</span><span class="p">,</span> <span class="n">dump_flags_t</span> <span class="n">flags</span><span class="p">);</span>
+
+<span class="cm">/**
+ * Print tree T, and its successors, on file FILE. FLAGS specifies details to 
+ * show in the dump
+ * @note Makes use of dump_generic_node
+ * @see Declared in tree-pretty-print.h
+ * @see Flags are listed in dumpfile.h
+ */</span>
+<span class="k">extern</span> <span class="kt">void</span> <span class="nf">print_generic_stmt</span><span class="p">(</span><span class="kt">FILE</span><span class="o">*</span> <span class="n">file</span><span class="p">,</span> <span class="n">tree</span> <span class="n">t</span><span class="p">,</span> <span class="n">dump_flags_t</span> <span class="n">flags</span><span class="p">);</span>
+
+<span class="cm">/** 
+ * The global singleton context aka "g". The name is chosen to be easy to type
+ * in a debugger. Represents the 'global state' of GCC
+ * 
+ * GCC's internal state can be divided into zero or more "parallel universe" of 
+ * state; an instance of the class context is one such context of state
+ * 
+ * @see Declared in context.h
+ */</span>
+<span class="k">extern</span> <span class="n">gcc</span><span class="o">::</span><span class="n">context</span> <span class="o">*</span><span class="n">g</span><span class="p">;</span>
+
+<span class="c1">// -----------------------------------------------------------------------------</span>
+<span class="c1">// GCC ATTRIBUTES MANAGEMENT (REGISTERING / CALLBACKS)</span>
+<span class="c1">// -----------------------------------------------------------------------------</span>
+
+<span class="cm">/**
+ * Insert a single ATTR into the attribute table
+ * @see Declared in plugin.h
+ * @note Insert the attribute into the 'gnu' attributes namespace
+ */</span>
+<span class="k">extern</span> <span class="kt">void</span> <span class="nf">register_attribute</span><span class="p">(</span><span class="k">const</span> <span class="k">struct</span> <span class="n">attribute_spec</span> <span class="o">*</span><span class="n">attr</span><span class="p">);</span>
+
+<span class="cm">/**
+ * Attribute handler callback 
+ * @note NODE points to the node to which the attribute is to be applied. NAME 
+ * is the name of the attribute. ARGS is the TREE_LIST of arguments (may be 
+ * NULL). FLAGS gives information about the context of the attribute. 
+ * Afterwards, the attributes will be added unless *NO_ADD_ATTRS is set to true 
+ * (which should be done on error). Depending on FLAGS, any attributes to be 
+ * applied to another type or DECL later may be returned; otherwise the return 
+ * value should be NULL_TREE. This pointer may be NULL if no special handling is
+ * required
+ * @see Declared in tree-core.h
+ */</span>
+<span class="k">static</span> <span class="n">tree</span> <span class="nf">handle_instrument_attribute</span><span class="p">(</span><span class="n">tree</span> <span class="o">*</span><span class="n">node</span><span class="p">,</span> <span class="n">tree</span> <span class="n">name</span><span class="p">,</span> <span class="n">tree</span> <span class="n">args</span><span class="p">,</span> <span class="kt">int</span> <span class="n">flags</span><span class="p">,</span> <span class="n">bool</span> <span class="o">*</span><span class="n">no_add_attrs</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="cp">#if DEBUG == 1
+</span>        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">"&gt; Found attribute</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+
+        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">"</span><span class="se">\t</span><span class="s">node = "</span><span class="p">);</span>
+        <span class="n">print_generic_stmt</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="o">*</span><span class="n">node</span><span class="p">,</span> <span class="n">TDF_NONE</span><span class="p">);</span>
+        
+        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">"</span><span class="se">\t</span><span class="s">name = "</span><span class="p">);</span>
+        <span class="n">print_generic_stmt</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">TDF_NONE</span><span class="p">);</span>
+    <span class="cp">#endif
+</span>
+    <span class="k">return</span> <span class="n">NULL_TREE</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="cm">/**
+ * Structure describing an attribute and a function to handle it
+ * @see Declared in tree-core.h
+ * @note Refer to tree-core for docs about
+ */</span>
+<span class="k">static</span> <span class="k">struct</span> <span class="n">attribute_spec</span> <span class="n">instrument_attr</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">ATTRIBUTE_NAME</span><span class="p">,</span>                 <span class="cm">/* name */</span>
+    <span class="mi">0</span><span class="p">,</span>                              <span class="cm">/* min_len */</span>
+    <span class="mi">0</span><span class="p">,</span>                              <span class="cm">/* max_len */</span>
+    <span class="nb">false</span><span class="p">,</span>                          <span class="cm">/* decl_req */</span>
+    <span class="nb">false</span><span class="p">,</span>                          <span class="cm">/* type_req */</span>
+    <span class="nb">false</span><span class="p">,</span>                           <span class="cm">/* fn_type_req */</span>
+    <span class="nb">false</span><span class="p">,</span>                          <span class="cm">/* affects_type_identity */</span>
+    <span class="n">handle_instrument_attribute</span><span class="p">,</span>    <span class="cm">/* handler */</span>
+    <span class="nb">NULL</span>                            <span class="cm">/* exclusions */</span>
+<span class="p">};</span>
+
+<span class="cm">/**
+ * Plugin callback called during attribute registration 
+ */</span>
+<span class="k">static</span> <span class="kt">void</span> <span class="nf">register_attributes</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">event_data</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">data</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">"&gt; Registering attribute '%s'</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">ATTRIBUTE_NAME</span><span class="p">);</span>
+    <span class="n">register_attribute</span><span class="p">(</span><span class="o">&amp;</span><span class="n">instrument_attr</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// -----------------------------------------------------------------------------</span>
+<span class="c1">// PLUGIN INSTRUMENTATION LOGICS</span>
+<span class="c1">// -----------------------------------------------------------------------------</span>
+
+<span class="cm">/**
+ * Create a function call to '__profile' and insert it before the given stmt
+ */</span>
+<span class="k">static</span> <span class="kt">void</span> <span class="nf">insert_instrumentation_fn</span><span class="p">(</span><span class="n">gimple</span><span class="o">*</span> <span class="n">curr_stmt</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="c1">// build function prototype</span>
+    <span class="n">tree</span> <span class="n">proto</span> <span class="o">=</span> <span class="n">build_function_type_list</span><span class="p">(</span>
+            <span class="n">void_type_node</span><span class="p">,</span>             <span class="c1">// return type</span>
+            <span class="n">NULL_TREE</span>                   <span class="c1">// varargs terminator</span>
+        <span class="p">);</span>           
+    
+    <span class="c1">// builds and returns function declaration with NAME and PROTOTYPE</span>
+    <span class="n">tree</span> <span class="n">decl</span> <span class="o">=</span> <span class="n">build_fn_decl</span><span class="p">(</span><span class="n">FUNCTION_NAME</span><span class="p">,</span> <span class="n">proto</span><span class="p">);</span>
+
+    <span class="c1">// build the GIMPLE function call to decl</span>
+    <span class="n">gcall</span><span class="o">*</span> <span class="n">call</span> <span class="o">=</span> <span class="n">gimple_build_call</span><span class="p">(</span><span class="n">decl</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+
+    <span class="c1">// get an iterator pointing to first basic block of the statement</span>
+    <span class="n">gimple_stmt_iterator</span> <span class="n">gsi</span> <span class="o">=</span> <span class="n">gsi_for_stmt</span><span class="p">(</span><span class="n">curr_stmt</span><span class="p">);</span>
+
+    <span class="c1">// insert it before the statement that was passed as the first argument</span>
+    <span class="n">gsi_insert_before</span><span class="p">(</span><span class="o">&amp;</span><span class="n">gsi</span><span class="p">,</span> <span class="n">call</span><span class="p">,</span> <span class="n">GSI_NEW_STMT</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="cm">/**
+ * For each function lookup attributes and attach profiling function
+ */</span>
+<span class="k">static</span> <span class="kt">unsigned</span> <span class="kt">int</span> <span class="nf">instrument_assignments_plugin_exec</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="c1">// get the FUNCTION_DECL of the function whose body we are reading</span>
+    <span class="n">tree</span> <span class="n">fndef</span> <span class="o">=</span> <span class="n">current_function_decl</span><span class="p">;</span>
+    
+    <span class="c1">// print the function name</span>
+    <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">"&gt; Inspecting function '%s'</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">FN_NAME</span><span class="p">(</span><span class="n">fndef</span><span class="p">));</span>
+
+    <span class="c1">// get the attributes list</span>
+    <span class="n">tree</span> <span class="n">attrlist</span> <span class="o">=</span> <span class="n">DECL_ATTRIBUTES</span><span class="p">(</span><span class="n">fndef</span><span class="p">);</span>
+
+    <span class="c1">// lookup into attribute list searcing for our registered attribute</span>
+    <span class="n">tree</span> <span class="n">attr</span> <span class="o">=</span> <span class="n">lookup_attribute</span><span class="p">(</span><span class="n">ATTRIBUTE_NAME</span><span class="p">,</span> <span class="n">attrlist</span><span class="p">);</span>
+
+    <span class="c1">// if the attribute is not present</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">attr</span> <span class="o">==</span> <span class="n">NULL_TREE</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+
+    <span class="c1">// attribute was in the list</span>
+    <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">"</span><span class="se">\t</span><span class="s"> attribute %s found! </span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">ATTRIBUTE_NAME</span><span class="p">);</span>
+
+    <span class="c1">// get function entry block</span>
+    <span class="n">basic_block</span> <span class="n">entry</span> <span class="o">=</span> <span class="n">ENTRY_BLOCK_PTR_FOR_FN</span><span class="p">(</span><span class="n">cfun</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">next_bb</span><span class="p">;</span>
+
+    <span class="c1">// get the first statement</span>
+    <span class="n">gimple</span><span class="o">*</span> <span class="n">first_stmt</span> <span class="o">=</span> <span class="n">gsi_stmt</span><span class="p">(</span><span class="n">gsi_start_bb</span><span class="p">(</span><span class="n">entry</span><span class="p">));</span>
+
+    <span class="c1">// warn the user we are adding a profiling function</span>
+    <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">"</span><span class="se">\t</span><span class="s"> adding function call before "</span><span class="p">);</span>
+    <span class="n">print_gimple_stmt</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="n">first_stmt</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">TDF_NONE</span><span class="p">);</span>
+
+    <span class="c1">// insert the function</span>
+    <span class="n">insert_instrumentation_fn</span><span class="p">(</span><span class="n">first_stmt</span><span class="p">);</span>
+
+    <span class="c1">// done!</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="cm">/** 
+ * Metadata for a pass, non-varying across all instances of a pass
+ * @see Declared in tree-pass.h
+ * @note Refer to tree-pass for docs about
+ */</span>
+<span class="k">struct</span> <span class="n">pass_data</span> <span class="n">ins_pass_data</span> <span class="o">=</span>
+<span class="p">{</span>
+    <span class="p">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">GIMPLE_PASS</span><span class="p">,</span>                                    <span class="c1">// type of pass</span>
+    <span class="p">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">PLUGIN_NAME</span><span class="p">,</span>                                    <span class="c1">// name of plugin</span>
+    <span class="p">.</span><span class="n">optinfo_flags</span> <span class="o">=</span> <span class="n">OPTGROUP_NONE</span><span class="p">,</span>                         <span class="c1">// no opt dump</span>
+    <span class="p">.</span><span class="n">tv_id</span> <span class="o">=</span> <span class="n">TV_NONE</span><span class="p">,</span>                                       <span class="c1">// no timevar (see timevar.h)</span>
+    <span class="p">.</span><span class="n">properties_required</span> <span class="o">=</span> <span class="n">PROP_gimple_any</span><span class="p">,</span>                 <span class="c1">// entire gimple grammar as input</span>
+    <span class="p">.</span><span class="n">properties_provided</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>                               <span class="c1">// no prop in output</span>
+    <span class="p">.</span><span class="n">properties_destroyed</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>                              <span class="c1">// no prop removed</span>
+    <span class="p">.</span><span class="n">todo_flags_start</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>                                  <span class="c1">// need nothing before</span>
+    <span class="p">.</span><span class="n">todo_flags_finish</span> <span class="o">=</span> <span class="n">TODO_update_ssa</span><span class="o">|</span><span class="n">TODO_cleanup_cfg</span>   <span class="c1">// need to update SSA repr after and repair cfg</span>
+<span class="p">};</span>
+
+<span class="cm">/**
+ * Definition of our instrumentation GIMPLE pass
+ * @note Extends gimple_opt_pass class
+ * @see Declared in tree-pass.h
+ */</span>
+<span class="n">class</span> <span class="n">ins_gimple_pass</span> <span class="o">:</span> <span class="n">public</span> <span class="n">gimple_opt_pass</span>
+<span class="p">{</span>
+<span class="nl">public:</span>
+
+    <span class="cm">/**
+     * Constructor
+     */</span>
+    <span class="n">ins_gimple_pass</span> <span class="p">(</span><span class="k">const</span> <span class="n">pass_data</span><span class="o">&amp;</span> <span class="n">data</span><span class="p">,</span> <span class="n">gcc</span><span class="o">::</span><span class="n">context</span> <span class="o">*</span><span class="n">ctxt</span><span class="p">)</span> <span class="o">:</span> <span class="n">gimple_opt_pass</span> <span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">ctxt</span><span class="p">)</span> <span class="p">{}</span>
+
+    <span class="cm">/**
+     * This and all sub-passes are executed only if the function returns true
+     * @note Defined in opt_pass father class
+     * @see Defined in tree-pass.h
+     */</span> 
+    <span class="n">bool</span> <span class="n">gate</span> <span class="p">(</span><span class="n">function</span><span class="o">*</span> <span class="n">gate_fun</span><span class="p">)</span> 
+    <span class="p">{</span>
+        <span class="k">return</span> <span class="nb">true</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="cm">/**
+     * This is the code to run when pass is executed
+     * @note Defined in opt_pass father class
+     * @see Defined in tree-pass.h
+     */</span>
+    <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">execute</span><span class="p">(</span><span class="n">function</span><span class="o">*</span> <span class="n">exec_fun</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">return</span> <span class="n">instrument_assignments_plugin_exec</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="c1">// instanciate a new instrumentation GIMPLE pass</span>
+<span class="n">ins_gimple_pass</span> <span class="n">inst_pass</span> <span class="o">=</span> <span class="n">ins_gimple_pass</span><span class="p">(</span><span class="n">ins_pass_data</span><span class="p">,</span> <span class="n">g</span><span class="p">);</span>
+
+<span class="c1">// -----------------------------------------------------------------------------</span>
+<span class="c1">// PLUGIN INITIALIZATION</span>
+<span class="c1">// -----------------------------------------------------------------------------</span>
+
+<span class="cm">/**
+ * Initializes the plugin. Returns 0 if initialization finishes successfully. 
+ */</span>
+<span class="kt">int</span> <span class="nf">plugin_init</span><span class="p">(</span><span class="k">struct</span> <span class="n">plugin_name_args</span> <span class="o">*</span><span class="n">info</span><span class="p">,</span> <span class="k">struct</span> <span class="n">plugin_gcc_version</span> <span class="o">*</span><span class="n">ver</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="c1">// new pass that will be registered</span>
+    <span class="k">struct</span> <span class="n">register_pass_info</span> <span class="n">pass</span><span class="p">;</span>
+
+    <span class="c1">// this plugin is compatible only with specified base ver</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">strncmp</span><span class="p">(</span><span class="n">inst_plugin_ver</span><span class="p">.</span><span class="n">basever</span><span class="p">,</span> <span class="n">ver</span><span class="o">-&gt;</span><span class="n">basever</span><span class="p">,</span> <span class="n">strlen</span><span class="p">(</span><span class="n">ver</span><span class="o">-&gt;</span><span class="n">basever</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+
+    <span class="c1">// tell to GCC some info about this plugin</span>
+    <span class="n">register_callback</span><span class="p">(</span><span class="n">PLUGIN_NAME</span><span class="p">,</span> <span class="n">PLUGIN_INFO</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">inst_plugin_info</span><span class="p">);</span>
+
+    <span class="c1">// warn the user about the presence of this plugin</span>
+    <span class="n">printf</span><span class="p">(</span><span class="s">"&gt; Instrumentation plugin '%s @ %s' was loaded onto GCC</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">PLUGIN_NAME</span><span class="p">,</span> <span class="n">PLUGIN_VERSION</span><span class="p">);</span>
+
+    <span class="c1">// insert inst pass into the struct used to register the pass</span>
+    <span class="n">pass</span><span class="p">.</span><span class="n">pass</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">inst_pass</span><span class="p">;</span>
+
+    <span class="c1">// and get called after GCC has produced SSA representation  </span>
+    <span class="n">pass</span><span class="p">.</span><span class="n">reference_pass_name</span> <span class="o">=</span> <span class="s">"ssa"</span><span class="p">;</span>
+
+    <span class="c1">// after the first opt pass to be sure opt will not throw away our stuff</span>
+    <span class="n">pass</span><span class="p">.</span><span class="n">ref_pass_instance_number</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="n">pass</span><span class="p">.</span><span class="n">pos_op</span> <span class="o">=</span> <span class="n">PASS_POS_INSERT_AFTER</span><span class="p">;</span>
+
+    <span class="c1">// add our pass hooking into pass manager</span>
+    <span class="n">register_callback</span><span class="p">(</span><span class="n">PLUGIN_NAME</span><span class="p">,</span> <span class="n">PLUGIN_PASS_MANAGER_SETUP</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">pass</span><span class="p">);</span>
+
+    <span class="c1">// get called at attribute registration</span>
+    <span class="n">register_callback</span><span class="p">(</span><span class="n">PLUGIN_NAME</span><span class="p">,</span> <span class="n">PLUGIN_ATTRIBUTES</span><span class="p">,</span> <span class="n">register_attributes</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>
+
+    <span class="c1">// everthing has worked</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The code is fully commented. Unfortunately, it is tough to explain everything step by step.</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;stdio.h&gt;
+</span>
+<span class="kt">void</span> <span class="nf">__inst_profile</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="n">printf</span><span class="p">(</span><span class="s">"Do something here!</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="n">__attribute</span><span class="p">((</span><span class="n">profiled</span><span class="p">))</span> <span class="kt">void</span> <span class="nf">f1</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="kt">int</span> <span class="n">a</span><span class="p">;</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">a</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="k">return</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="n">printf</span><span class="p">(</span><span class="s">"I'm a target C program.</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+    <span class="n">f1</span><span class="p">();</span>
+    <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>So let’s write a simple target program and proceed to compilation!</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span><span class="w"> </span>gcc target.c <span class="nt">-fplugin</span><span class="o">=</span><span class="sb">`</span><span class="nb">pwd</span><span class="sb">`</span>/inst_plugin.so <span class="nt">-o</span> bin
+<span class="gp">&gt;</span><span class="w"> </span>Instrumentation plugin <span class="s1">'inst_plugin @ 0.1'</span> was loaded onto GCC
+<span class="gp">&gt;</span><span class="w"> </span>Registering attribute <span class="s1">'profiled'</span>
+<span class="gp">&gt;</span><span class="w"> </span>Found attribute
+<span class="go">        node = f1
+        name = profiled
+</span><span class="gp">&gt;</span><span class="w"> </span>Inspecting <span class="k">function</span> <span class="s1">'__inst_profile'</span>
+<span class="gp">&gt;</span><span class="w"> </span>Inspecting <span class="k">function</span> <span class="s1">'f1'</span>
+<span class="go">         attribute profiled found! 
+</span><span class="gp">         adding function call before a_2 = a_1(D) + 1;</span><span class="w">
+</span><span class="gp">&gt;</span><span class="w"> </span>Inspecting <span class="k">function</span> <span class="s1">'main'</span>
+<span class="go">
+</span><span class="gp">$</span><span class="w"> </span>./bin
+<span class="go">I'm a target C program.
+Do something here!
+</span></code></pre></div></div>
+
+<p>Fine! The plugin was loaded onto GCC, and then, when inspecting functions, it found the attribute. At that point, it inserted the function call. When we run the binary, we can appreciate the output is enriched with the function call!</p>
+
+<h3 id="33-instrument-code-with-low-level-asm">3.3. <a name="Instrumentcodewithlow-levelASM"></a>Instrument code with low-level ASM</h3>
+
+<p>In this last section, we want to examine the question more in-depth. The idea is to get our hands dirty and work directly at the low-level. Why we have to do this? Actually, it depends, maybe you want to realize something more powerful or with better performance. Or you need to output specific instructions for some reason. In this example, we will try to implement the same stuff of the other sections but avoiding the function call mechanism.</p>
+
+<h4 id="331-introduction-to-rtl-language">3.3.1. <a name="IntroductiontoRTLlanguage"></a>Introduction to RTL language</h4>
+
+<p>This last section deals with low-level representation created by GCC and represented with RTL (Register Transfer Language). RTL is, as the name suggests, a language in which the instructions are built in a kind of algebraic form that describes what the instructions really do. Each RTL instruction represents, pretty much, the instruction that will be outputted by GCC as assembly opcodes.</p>
+
+<p>RTL uses five kinds of objects<a href="https://gcc.gnu.org/onlinedocs/gccint/RTL-Objects.html#RTL-Objects">[13]</a>:</p>
+<ul>
+  <li>expressions</li>
+  <li>integers</li>
+  <li>wide integers</li>
+  <li>strings</li>
+  <li>vectors</li>
+</ul>
+
+<p>Each RTL object is, practically, a list made up of structures that point at other structures. We focus on expressions, that are the most important ones. Like the other objects, an RTL expression or <code class="language-plaintext highlighter-rouge">rtx</code> is a structure, referred with a pointer.</p>
+
+<p>Expressions are classified by expression codes (also called RTX codes). The expression code is a name defined in rtl.def. The possible expression codes and their meanings are machine-independent. The RTX code can be extracted with the macro <code class="language-plaintext highlighter-rouge">GET_CODE (x)</code> and altered with <code class="language-plaintext highlighter-rouge">PUT_CODE (x, newcode)</code>.</p>
+
+<p>Let’s analyze one of the instructions that compose the prologue of a function <code class="language-plaintext highlighter-rouge">push %ebp</code>. This instruction is represented in RTL by the following RTL expression.</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">(</span><span class="n">insn</span><span class="o">/</span><span class="n">f</span> <span class="mi">13</span> <span class="mi">22</span> <span class="mi">14</span>            <span class="c1">// /f means that it is part of a function prologue</span>
+                            <span class="c1">// isns number 13, followed by isns 14 and preceded by 22   </span>
+  <span class="p">(</span><span class="n">set</span>                      <span class="c1">// represent the action of storing a value somewhere</span>
+    <span class="p">(</span><span class="n">mem</span><span class="o">:</span><span class="n">DI</span>                 <span class="c1">// represents a reference to main memory (double integer 8 byte)</span>
+      <span class="p">(</span><span class="n">pre_dec</span><span class="o">:</span><span class="n">DI</span>           <span class="c1">// before accessing needed to decrement the stack pointer</span>
+        <span class="p">(</span><span class="n">reg</span><span class="o">/</span><span class="n">f</span><span class="o">:</span><span class="n">DI</span> <span class="mi">7</span> <span class="n">sp</span><span class="p">)</span>     <span class="c1">// reference to the 7th register, sp (8 byte) that contains a pointer</span>
+      <span class="p">)</span> <span class="p">[</span><span class="mi">0</span>  <span class="n">S8</span> <span class="n">A8</span><span class="p">]</span>          <span class="c1">// no alias set, access to 8 bytes memory, 8 byte aligned expression</span>
+    <span class="p">)</span>
+    <span class="p">(</span><span class="n">reg</span><span class="o">/</span><span class="n">f</span><span class="o">:</span><span class="n">DI</span> <span class="mi">6</span> <span class="n">bp</span><span class="p">)</span>         <span class="c1">// access to the 6th reg. bp, that contains a pointer</span>
+  <span class="p">)</span> <span class="s">"target.c"</span><span class="o">:</span><span class="mi">11</span><span class="o">:</span><span class="mi">1</span> <span class="o">-</span><span class="mi">1</span>      <span class="c1">// found that in target.c line 11</span>
+  <span class="p">(</span><span class="n">nil</span><span class="p">)</span>                     <span class="c1">// end of list of rtx</span>
+<span class="p">)</span>
+</code></pre></div></div>
+
+<p>RTL is a language that provides a lot of information! It starts saying the instruction <code class="language-plaintext highlighter-rouge">13</code> will be followed by instruction <code class="language-plaintext highlighter-rouge">14</code> and preceded by instruction <code class="language-plaintext highlighter-rouge">22</code>. Then it says that the instruction takes apart in a function prologue with the flag <code class="language-plaintext highlighter-rouge">/f</code>.</p>
+
+<p>Subsequently, it says the instruction will store a value in the main memory. The value to be stored must be taken from the 6th register of the machine, the <code class="language-plaintext highlighter-rouge">bp</code> register taking the entire 8-byte value, and also indicates that the register contains a <code class="language-plaintext highlighter-rouge">frame_related</code> pointer (flag <code class="language-plaintext highlighter-rouge">/f</code>). The place in which storing is calculated using the 7th register of the machine <code class="language-plaintext highlighter-rouge">sp</code> using all 8 bytes and indicates that <code class="language-plaintext highlighter-rouge">sp</code> contains a <code class="language-plaintext highlighter-rouge">frame_related</code> pointer (flag <code class="language-plaintext highlighter-rouge">/f</code>). Furthermore, the access to the memory must be preceded by a decrement of the register itself.</p>
+
+<p>For each operation we need to do at a low-level, we have to take care of RTL. GCC has its own API to build RTX expression. Each RTX expression must have a side one, namely the modification of the state of the machine. The most common are<a href="https://gcc.gnu.org/onlinedocs/gccint/Side-Effects.html#Side-Effects">[14]</a>:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">set lval x</code>: The action of storing the value of <code class="language-plaintext highlighter-rouge">x</code> into the place represented by <code class="language-plaintext highlighter-rouge">lval</code></li>
+  <li><code class="language-plaintext highlighter-rouge">return</code>: Return from the current function</li>
+  <li><code class="language-plaintext highlighter-rouge">call function nargs</code>: Function call where <code class="language-plaintext highlighter-rouge">function</code> is a mem expression whose address is the address of the function to be called</li>
+  <li><code class="language-plaintext highlighter-rouge">clobber x</code>: The possible storing of value into <code class="language-plaintext highlighter-rouge">x</code>, which must be a reg, scratch, parallel or mem expression</li>
+  <li><code class="language-plaintext highlighter-rouge">use x</code>: The use of the value of <code class="language-plaintext highlighter-rouge">x</code>. It indicates that the value in <code class="language-plaintext highlighter-rouge">x</code> at this point in the program is needed</li>
+  <li><code class="language-plaintext highlighter-rouge">parallel [x0 x1 …]</code>: Several side effects performed in parallel</li>
+  <li><code class="language-plaintext highlighter-rouge">cond_exec [cond expr]</code>: Conditionally executed expression. The <code class="language-plaintext highlighter-rouge">expr</code> is executed only if the <code class="language-plaintext highlighter-rouge">cond</code> is nonzero</li>
+  <li><code class="language-plaintext highlighter-rouge">asm_input s</code>: Literal assembler code as described by the string <code class="language-plaintext highlighter-rouge">s</code></li>
+</ul>
+
+<p>The <code class="language-plaintext highlighter-rouge">push</code> instruction we have seen so far has the side effect of storing the value in the memory. In practice, when we want to modify the target program’s behavior with our plugin, we need to build RT expression and then make the plugin emit the RTX in the chosen locus.</p>
+
+<h4 id="332-build-something-with-rtl">3.3.2. <a name="BuildsomethingwithRTL"></a>Build something with RTL</h4>
+
+<p>Let’s imagine we want to build an instruction to add something to a register, such as a simple <code class="language-plaintext highlighter-rouge">addq $immediate, %rax</code>. We have to develop the expression using GCC API.</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/* Most used reg number:
+  AX_REG    0
+  DX_REG    1
+  CX_REG    2
+  BX_REG    3
+  SI_REG    4
+  DI_REG    5
+  BP_REG    6
+  SP_REG    7
+  FLAGS_REG 17
+*/</span>
+<span class="cm">/* Most used machine modes:
+  VOIDmode: absence of a mode
+  BImode:   bit
+  QImode:   quarter-integer (a single byte)
+  HImode:   half-integer (two-byte integer)
+  SImode:   single-integer (four-byte integer)
+  DImode:   double-integer (eight-byte integer)
+  CCmode:   condition-code (result of a comparison operation)
+  BLKmode:  block (string or vector mem reference)
+*/</span>
+
+<span class="n">rtx</span> <span class="n">reg</span> <span class="o">=</span> <span class="n">gen_rtx_REG</span><span class="p">(</span><span class="n">DImode</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>         <span class="c1">// access to ax in 64 bit mode (rax)</span>
+<span class="n">rtx</span> <span class="n">imm</span> <span class="o">=</span> <span class="n">gen_rtx_CONST_INT</span><span class="p">(</span><span class="n">DImode</span><span class="p">,</span> <span class="mi">5</span><span class="p">);</span>   <span class="c1">// immediate int64 $5</span>
+<span class="n">rtx</span> <span class="n">add</span> <span class="o">=</span> <span class="n">gen_rtx_PLUS</span><span class="p">(</span><span class="n">DImode</span><span class="p">,</span> <span class="n">reg</span><span class="p">,</span> <span class="n">imm</span><span class="p">);</span> <span class="c1">// addq instruction with reg and imm operand </span>
+<span class="n">rtx</span> <span class="n">set</span> <span class="o">=</span> <span class="n">gen_rtx_SET</span><span class="p">(</span><span class="n">reg</span><span class="p">,</span> <span class="n">add</span><span class="p">);</span>          <span class="c1">// save the result of instr. to reg</span>
+
+<span class="n">print_rtl_single</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="n">set</span><span class="p">);</span>
+
+<span class="cm">/* output:
+(set (reg:DI 0 ax)
+    (plus:DI (reg:DI 0 ax)
+        (const_int 5 [0x5])))
+*/</span>
+</code></pre></div></div>
+
+<p>Tremendous fatigue! Also, if you want to be precise, the ADD instruction could modify the FLAG register in case of overflow, for instance! Then the <code class="language-plaintext highlighter-rouge">rtx</code> must be expanded further! We need to use the <code class="language-plaintext highlighter-rouge">clobber</code> side effect!</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">rtx</span> <span class="n">reg</span> <span class="o">=</span> <span class="n">gen_rtx_REG</span><span class="p">(</span><span class="n">DImode</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>         <span class="c1">// access to ax in 64 bit mode (rax)</span>
+<span class="n">rtx</span> <span class="n">imm</span> <span class="o">=</span> <span class="n">gen_rtx_CONST_INT</span><span class="p">(</span><span class="n">DImode</span><span class="p">,</span> <span class="mi">5</span><span class="p">);</span>   <span class="c1">// immediate int64 $5</span>
+<span class="n">rtx</span> <span class="n">add</span> <span class="o">=</span> <span class="n">gen_rtx_PLUS</span><span class="p">(</span><span class="n">DImode</span><span class="p">,</span> <span class="n">reg</span><span class="p">,</span> <span class="n">imm</span><span class="p">);</span> <span class="c1">// addq instruction with reg and imm operand </span>
+<span class="n">rtx</span> <span class="n">set</span> <span class="o">=</span> <span class="n">gen_rtx_SET</span><span class="p">(</span><span class="n">reg</span><span class="p">,</span> <span class="n">add</span><span class="p">);</span>          <span class="c1">// save the result of instr. to reg</span>
+<span class="n">rtx</span> <span class="n">flg</span> <span class="o">=</span> <span class="n">gen_rtx_REG</span><span class="p">(</span><span class="n">CCmode</span><span class="p">,</span> <span class="n">FLAGS_REG</span><span class="p">);</span> <span class="c1">// access to conditions in flags reg </span>
+<span class="n">rtx</span> <span class="n">clo</span> <span class="o">=</span> <span class="n">gen_rtx_CLOBBER</span><span class="p">(</span><span class="n">VOIDmode</span><span class="p">,</span> <span class="n">flg</span><span class="p">);</span> <span class="c1">// possible modification of reg flags</span>
+
+<span class="n">rtvec</span> <span class="n">vec</span> <span class="o">=</span> <span class="n">rtvec_alloc</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span>
+<span class="n">vec</span><span class="o">-&gt;</span><span class="n">elem</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">set</span><span class="p">;</span>
+<span class="n">vec</span><span class="o">-&gt;</span><span class="n">elem</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">clo</span><span class="p">;</span>
+
+<span class="n">rtx</span> <span class="n">par</span> <span class="o">=</span> <span class="n">gen_rtx_PARALLEL</span><span class="p">(</span><span class="n">VOIDmode</span><span class="p">,</span> <span class="n">vec</span><span class="p">);</span>
+<span class="n">print_rtl_single</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="n">par</span><span class="p">);</span>
+
+<span class="cm">/* output
+(parallel [
+  (set (reg:DI 0 ax)
+      (plus:DI (reg:DI 0 ax)
+          (const_int 5 [0x5])))
+  (clobber (reg:CC 17 flags))
+])
+*/</span>
+</code></pre></div></div>
+
+<p>Sometimes build an RTX is complicated and involves a lot of side effects and stuff. My hint is to read the RTL produced by GCC during the compilation of a program and then get the inspiration to build each and every RTX you need using the compilation’s option <code class="language-plaintext highlighter-rouge">-fdump-rtl-expand</code> .</p>
+
+<p>So we realize that do something with RTL is not so easy. However, <code class="language-plaintext highlighter-rouge">asm_input</code> comes to save us. Indeed one of the possible side effects is the direct output of ASM instructions. In theory, they thought, if someone places ASM inline, he knows what is doing, so we can directly output the ASM code.</p>
+
+<p>The only thing to take care is to declare it as volatile (otherwise could be stripped off during optimization) and then remember to declare where the ASM code will overwrite stuff in memory. Seems like we had to build, again, a complex RTX expression. However, here GCC comes in help also. We can declare all memory locations as clobber (just be sure!) using the BLK mode and the <code class="language-plaintext highlighter-rouge">scratch</code> RTX!</p>
+
+<blockquote>
+  <p>If x is (mem:BLK (const_int 0)) or (mem:BLK (scratch)), it means that all memory locations must be presumed clobbered. <a href="https://gcc.gnu.org/onlinedocs/gccint/Side-Effects.html#Side-Effects">[14]</a></p>
+</blockquote>
+
+<p>Of course, here, GCC will be unable to perform optimization or reordering of instruction, but clearly, if you specify ASM code, 99% you want to compiler to output that exact code!</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">char</span> <span class="n">opcodes</span><span class="p">[]</span> <span class="o">=</span> <span class="s">"#do something in asm..."</span><span class="p">;</span>
+
+<span class="n">rtx</span> <span class="n">cod</span> <span class="o">=</span> <span class="n">gen_rtx_ASM_INPUT</span><span class="p">(</span><span class="n">VOIDmode</span><span class="p">,</span> <span class="n">opcodes</span><span class="p">);</span>
+<span class="n">MEM_VOLATILE_P</span> <span class="p">(</span><span class="n">cod</span><span class="p">)</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="c1">// set as volatile</span>
+<span class="n">rtx</span> <span class="n">mem</span> <span class="o">=</span> <span class="n">gen_rtx_MEM</span><span class="p">(</span><span class="n">BLKmode</span><span class="p">,</span> <span class="n">gen_rtx_SCRATCH</span><span class="p">(</span><span class="n">VOIDmode</span><span class="p">));</span> <span class="c1">// all memory locations!</span>
+<span class="n">rtx</span> <span class="n">clo</span> <span class="o">=</span> <span class="n">gen_rtx_CLOBBER</span><span class="p">(</span><span class="n">VOIDmode</span><span class="p">,</span> <span class="n">mem</span><span class="p">);</span> <span class="c1">// all memory locations could be written</span>
+<span class="n">rtx</span> <span class="n">flg</span> <span class="o">=</span> <span class="n">gen_rtx_REG</span><span class="p">(</span><span class="n">CCmode</span><span class="p">,</span> <span class="n">FLAGS_REG</span><span class="p">);</span> <span class="c1">// access to conditions in flags reg </span>
+<span class="n">rtx</span> <span class="n">clf</span> <span class="o">=</span> <span class="n">gen_rtx_CLOBBER</span><span class="p">(</span><span class="n">VOIDmode</span><span class="p">,</span> <span class="n">flg</span><span class="p">);</span> <span class="c1">// possible modification of reg flags</span>
+
+<span class="n">rtvec</span> <span class="n">vec</span> <span class="o">=</span> <span class="n">rtvec_alloc</span><span class="p">(</span><span class="mi">3</span><span class="p">);</span>
+<span class="n">vec</span><span class="o">-&gt;</span><span class="n">elem</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">cod</span><span class="p">;</span>
+<span class="n">vec</span><span class="o">-&gt;</span><span class="n">elem</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">clo</span><span class="p">;</span>
+<span class="n">vec</span><span class="o">-&gt;</span><span class="n">elem</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">clf</span><span class="p">;</span>
+<span class="n">rtx</span> <span class="n">par</span> <span class="o">=</span> <span class="n">gen_rtx_PARALLEL</span><span class="p">(</span><span class="n">VOIDmode</span><span class="p">,</span> <span class="n">vec</span><span class="p">);</span>
+
+<span class="n">print_rtl_single</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="n">par</span><span class="p">);</span>
+
+<span class="cm">/* output
+(parallel [
+        (asm_input/v ("#do something in asm..."))
+        (clobber (mem:BLK (scratch) [0  A8]))
+        (clobber (reg:CC 17 flags))
+    ])
+*/</span>
+</code></pre></div></div>
+
+<p>Here we are! In this way, we can output the code we want without building any RTL expression! Also, we can mix both approaches.</p>
+
+<h4 id="333-instrument-functions-using-rtl">3.3.3. <a name="InstrumentfunctionsusingRTL"></a>Instrument functions using RTL</h4>
+
+<p>In this last example, we want to instrument a target program, similar to the previous models. However, here we will push on efficiency, instrumenting each function with a piece of code that does not contain prologue nor epilogue. Basically, we want to instrument each function with a piece of code and not a “real” function!</p>
+
+<blockquote>
+  <p>Here you can find the raw files: <a href="/assets/postdata/an-introduction-to-gcc-and-gccs-plugins/instrument-4/">example-4</a></p>
+</blockquote>
+
+<p>Let’s check the target program.</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// attribute naked force GCC to strip off prologue and epilogue</span>
+<span class="c1">// then we need to implement our "fake epilogue"</span>
+<span class="c1">// in this simple example as a JMP back to the address passed as arg</span>
+<span class="n">__attribute</span><span class="p">((</span><span class="kr">naked</span><span class="p">))</span> <span class="kt">void</span> <span class="nf">__inst_profile</span><span class="p">(</span><span class="kt">long</span> <span class="n">retaddr</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">printf</span><span class="p">(</span><span class="s">"Do something here!</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+    <span class="n">asm</span><span class="p">(</span><span class="s">"jmp *%0"</span> <span class="o">::</span> <span class="s">"r"</span> <span class="p">(</span><span class="n">retaddr</span><span class="p">));</span>
+<span class="p">}</span>
+
+<span class="c1">// attribute profiled will trigger the instrumentation!</span>
+<span class="n">__attribute</span><span class="p">((</span><span class="n">profiled</span><span class="p">))</span> <span class="kt">void</span> <span class="nf">f1</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="kt">int</span> <span class="n">a</span> <span class="o">=</span> <span class="mi">5</span><span class="p">;</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">a</span> <span class="o">+</span> <span class="mi">5</span><span class="p">;</span>  
+    <span class="k">return</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="n">printf</span><span class="p">(</span><span class="s">"I'm a target C program.</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+    <span class="n">f1</span><span class="p">();</span>
+    <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>We want that our plugin add the code to realize the following: during <code class="language-plaintext highlighter-rouge">f1</code> (before its prologue) will jump to the function, print “Do something here” and then return back to <code class="language-plaintext highlighter-rouge">f1</code>.</p>
+
+<p>In practice, we need to output the following ASM code before <code class="language-plaintext highlighter-rouge">f1</code> prologue.</p>
+
+<pre><code class="language-asm">push  %rdi              # push function 1st argument to avoid dirty it
+lea   0x2(%rip), %rdi   # load instr pointer with displacement and save in rdi
+jmp   FUNCTION_NAME     # jump to profiling function
+pop   %rdi              # pop to restore it
+</code></pre>
+
+<p>Given that the calling convention on x86_64 is to pass arguments to functions using registers <a href="https://en.wikipedia.org/wiki/X86_calling_conventions#System_V_AMD64_ABI">[15]</a>, the <code class="language-plaintext highlighter-rouge">__inst_profile</code> function expects that the argument will be in <code class="language-plaintext highlighter-rouge">rdi</code>. Obviously, we had to load the current instruction pointer adding some displacement to avoid jump back to the jump instruction!</p>
+
+<p>In the code above, we had taken advantage of the <code class="language-plaintext highlighter-rouge">RIP relative addressing</code> feature implemented in <code class="language-plaintext highlighter-rouge">x86_64</code> architecture. In practice, <code class="language-plaintext highlighter-rouge">rip</code> always points to the next instruction! Then we can’t read directly it (only control-transfer function could do it), but we can load the address that it is referring to! If you are interested in the reasons that pushed to the introduction of rip relative addressing, read the article <a href="http://www.nynaeve.net/?p=192">[16]</a></p>
+
+<p>With all the ingredients of the recipe, we can introduce the plugin code! It is heavily similar to the one relative to GENERIC/GIMPLE stuff for parts that regard registering the pass, attribute, and plugin info. But how the code is added is entirely different and based on RTL.</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;gcc-plugin.h&gt;
+#include &lt;rtl.h&gt;
+#include &lt;target.h&gt;
+#include &lt;tree.h&gt;
+#include &lt;tree-pass.h&gt;
+#include &lt;stringpool.h&gt;
+#include &lt;attribs.h&gt;
+#include &lt;memmodel.h&gt;
+#include &lt;emit-rtl.h&gt;
+</span>
+<span class="cm">/**
+ * When 1 enables verbose printing
+ */</span>
+<span class="cp">#define DEBUG               1
+</span>
+<span class="cm">/**
+ * Name of the function called to profile code
+ */</span>
+<span class="cp">#define FUNCTION_NAME       "__inst_profile"
+</span>
+<span class="cm">/**
+ * Name of the attribute used to instrument a function
+ */</span>
+<span class="cp">#define ATTRIBUTE_NAME      "profiled"
+</span>
+<span class="cm">/**
+ * Name of this plugin
+ */</span>
+<span class="cp">#define PLUGIN_NAME         "inst_plugin"
+</span>
+<span class="cm">/**
+ * Version of this plugin
+ */</span>
+<span class="cp">#define PLUGIN_VERSION      "0.1"
+</span>
+<span class="cm">/**
+ * Help/usage string for the plugin
+ */</span>
+<span class="cp">#define PLUGIN_HELP         "Usage: registers an attribute " ATTRIBUTE_NAME
+</span>
+<span class="cm">/**
+ * Required GCC version
+ */</span>
+<span class="cp">#define PLUGIN_GCC_BASEV    "9.2.1"
+</span>
+<span class="c1">// -----------------------------------------------------------------------------</span>
+<span class="c1">// GCC PLUGIN SETUP (BASIC INFO / LICENSE / REQUIRED VERSION)</span>
+<span class="c1">// -----------------------------------------------------------------------------</span>
+
+<span class="kt">int</span> <span class="n">plugin_is_GPL_compatible</span><span class="p">;</span>
+
+<span class="cm">/**
+ * Additional information about the plugin. Used by --help and --version
+ */</span>
+<span class="k">static</span> <span class="k">struct</span> <span class="n">plugin_info</span> <span class="n">inst_plugin_info</span> <span class="o">=</span>
+<span class="p">{</span>
+  <span class="p">.</span><span class="n">version</span>  <span class="o">=</span> <span class="n">PLUGIN_VERSION</span><span class="p">,</span>
+  <span class="p">.</span><span class="n">help</span>     <span class="o">=</span> <span class="n">PLUGIN_HELP</span><span class="p">,</span>
+<span class="p">};</span>
+
+<span class="cm">/**
+ * Represents the gcc version we need. Used to void using an incompatible plugin 
+ */</span>
+<span class="k">static</span> <span class="k">struct</span> <span class="n">plugin_gcc_version</span> <span class="n">inst_plugin_ver</span> <span class="o">=</span>
+<span class="p">{</span>
+  <span class="p">.</span><span class="n">basever</span>  <span class="o">=</span> <span class="n">PLUGIN_GCC_BASEV</span><span class="p">,</span>
+<span class="p">};</span>
+
+<span class="c1">// -----------------------------------------------------------------------------</span>
+<span class="c1">// GCC EXTERNAL DECLARATION</span>
+<span class="c1">// -----------------------------------------------------------------------------</span>
+
+<span class="cm">/**
+ * Takes a tree node and returns the identifier string
+ * @see https://gcc.gnu.org/onlinedocs/gccint/Identifiers.html
+ */</span>
+<span class="cp">#define FN_NAME(tree_fun) IDENTIFIER_POINTER (DECL_NAME (tree_fun))
+</span>
+<span class="cm">/**
+ * Takes a tree node and returns the identifier string length
+ * @see https://gcc.gnu.org/onlinedocs/gccint/Identifiers.html
+ */</span>
+<span class="cp">#define FN_NAME_LEN(tree_fun) IDENTIFIER_LENGTH (DECL_NAME (tree_fun))
+</span>
+<span class="cm">/**
+ * Print GIMPLE statement G to FILE using SPC indentation spaces and FLAGS
+ * @note Makes use of pp_gimple_stmt_1
+ * @see Declared in gimple-pretty-print.h
+ * @see Flags are listed in dumpfile.h
+ */</span>
+<span class="k">extern</span> <span class="kt">void</span> <span class="nf">print_gimple_stmt</span><span class="p">(</span><span class="kt">FILE</span> <span class="o">*</span> <span class="n">file</span><span class="p">,</span> <span class="n">gimple</span><span class="o">*</span> <span class="n">g</span><span class="p">,</span> <span class="kt">int</span> <span class="n">spc</span><span class="p">,</span> <span class="n">dump_flags_t</span> <span class="n">flags</span><span class="p">);</span>
+
+<span class="cm">/**
+ * Print tree T, and its successors, on file FILE. FLAGS specifies details to 
+ * show in the dump
+ * @note Makes use of dump_generic_node
+ * @see Declared in tree-pretty-print.h
+ * @see Flags are listed in dumpfile.h
+ */</span>
+<span class="k">extern</span> <span class="kt">void</span> <span class="nf">print_generic_stmt</span><span class="p">(</span><span class="kt">FILE</span><span class="o">*</span> <span class="n">file</span><span class="p">,</span> <span class="n">tree</span> <span class="n">t</span><span class="p">,</span> <span class="n">dump_flags_t</span> <span class="n">flags</span><span class="p">);</span>
+
+<span class="cm">/** 
+ * The global singleton context aka "g". The name is chosen to be easy to type
+ * in a debugger. Represents the 'global state' of GCC
+ * 
+ * GCC's internal state can be divided into zero or more "parallel universe" of 
+ * state; an instance of the class context is one such context of state
+ * 
+ * @see Declared in context.h
+ */</span>
+<span class="k">extern</span> <span class="n">gcc</span><span class="o">::</span><span class="n">context</span> <span class="o">*</span><span class="n">g</span><span class="p">;</span>
+
+<span class="c1">// -----------------------------------------------------------------------------</span>
+<span class="c1">// GCC ATTRIBUTES MANAGEMENT (REGISTERING / CALLBACKS)</span>
+<span class="c1">// -----------------------------------------------------------------------------</span>
+
+<span class="cm">/**
+ * Insert a single ATTR into the attribute table
+ * @see Declared in plugin.h
+ * @note Insert the attribute into the 'gnu' attributes namespace
+ */</span>
+<span class="k">extern</span> <span class="kt">void</span> <span class="nf">register_attribute</span><span class="p">(</span><span class="k">const</span> <span class="k">struct</span> <span class="n">attribute_spec</span> <span class="o">*</span><span class="n">attr</span><span class="p">);</span>
+
+<span class="cm">/**
+ * Attribute handler callback 
+ * @note NODE points to the node to which the attribute is to be applied. NAME 
+ * is the name of the attribute. ARGS is the TREE_LIST of arguments (may be 
+ * NULL). FLAGS gives information about the context of the attribute. 
+ * Afterwards, the attributes will be added unless *NO_ADD_ATTRS is set to true 
+ * (which should be done on error). Depending on FLAGS, any attributes to be 
+ * applied to another type or DECL later may be returned; otherwise the return 
+ * value should be NULL_TREE. This pointer may be NULL if no special handling is
+ * required
+ * @see Declared in tree-core.h
+ */</span>
+<span class="k">static</span> <span class="n">tree</span> <span class="nf">handle_instrument_attribute</span><span class="p">(</span><span class="n">tree</span> <span class="o">*</span><span class="n">node</span><span class="p">,</span> <span class="n">tree</span> <span class="n">name</span><span class="p">,</span> <span class="n">tree</span> <span class="n">args</span><span class="p">,</span> <span class="kt">int</span> <span class="n">flags</span><span class="p">,</span> <span class="n">bool</span> <span class="o">*</span><span class="n">no_add_attrs</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="cp">#if DEBUG == 1
+</span>        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">"&gt; Found attribute</span><span class="se">\n</span><span class="s">"</span><span class="p">);</span>
+
+        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">"</span><span class="se">\t</span><span class="s">node = "</span><span class="p">);</span>
+        <span class="n">print_generic_stmt</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="o">*</span><span class="n">node</span><span class="p">,</span> <span class="n">TDF_NONE</span><span class="p">);</span>
+        
+        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">"</span><span class="se">\t</span><span class="s">name = "</span><span class="p">);</span>
+        <span class="n">print_generic_stmt</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">TDF_NONE</span><span class="p">);</span>
+    <span class="cp">#endif
+</span>
+    <span class="k">return</span> <span class="n">NULL_TREE</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="cm">/**
+ * Structure describing an attribute and a function to handle it
+ * @see Declared in tree-core.h
+ * @note Refer to tree-core for docs about
+ */</span>
+<span class="k">static</span> <span class="k">struct</span> <span class="n">attribute_spec</span> <span class="n">instrument_attr</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">ATTRIBUTE_NAME</span><span class="p">,</span>                 <span class="cm">/* name */</span>
+    <span class="mi">0</span><span class="p">,</span>                              <span class="cm">/* min_len */</span>
+    <span class="mi">0</span><span class="p">,</span>                              <span class="cm">/* max_len */</span>
+    <span class="nb">false</span><span class="p">,</span>                          <span class="cm">/* decl_req */</span>
+    <span class="nb">false</span><span class="p">,</span>                          <span class="cm">/* type_req */</span>
+    <span class="nb">false</span><span class="p">,</span>                           <span class="cm">/* fn_type_req */</span>
+    <span class="nb">false</span><span class="p">,</span>                          <span class="cm">/* affects_type_identity */</span>
+    <span class="n">handle_instrument_attribute</span><span class="p">,</span>    <span class="cm">/* handler */</span>
+    <span class="nb">NULL</span>                            <span class="cm">/* exclusions */</span>
+<span class="p">};</span>
+
+<span class="cm">/**
+ * Plugin callback called during attribute registration 
+ */</span>
+<span class="k">static</span> <span class="kt">void</span> <span class="nf">register_attributes</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">event_data</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">data</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">"&gt; Registering attribute '%s'</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">ATTRIBUTE_NAME</span><span class="p">);</span>
+    <span class="n">register_attribute</span><span class="p">(</span><span class="o">&amp;</span><span class="n">instrument_attr</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// -----------------------------------------------------------------------------</span>
+<span class="c1">// PLUGIN INSTRUMENTATION LOGICS</span>
+<span class="c1">// -----------------------------------------------------------------------------</span>
+
+<span class="cm">/**
+ * Generate RTL for asm code passed as STRING_CST and emit it after location loc 
+ * @note Heavily derived from GCC `expand_asm_loc` in `cfg_expand.c` 
+ */</span>
+<span class="kt">void</span> <span class="nf">expand_asm_after</span> <span class="p">(</span><span class="n">tree</span> <span class="n">string</span><span class="p">,</span> <span class="kt">int</span> <span class="n">vol</span><span class="p">,</span> <span class="n">rtx_insn</span> <span class="o">*</span> <span class="n">loc</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">rtx</span> <span class="n">body</span><span class="p">;</span>
+
+    <span class="n">body</span> <span class="o">=</span> <span class="n">gen_rtx_ASM_INPUT_loc</span> <span class="p">(</span><span class="n">VOIDmode</span><span class="p">,</span> <span class="n">ggc_strdup</span> <span class="p">(</span><span class="n">TREE_STRING_POINTER</span> <span class="p">(</span><span class="n">string</span><span class="p">)),</span> <span class="n">INSN_LOCATION</span> <span class="p">(</span><span class="n">loc</span><span class="p">));</span>
+
+    <span class="n">MEM_VOLATILE_P</span> <span class="p">(</span><span class="n">body</span><span class="p">)</span> <span class="o">=</span> <span class="n">vol</span><span class="p">;</span>
+
+    <span class="cm">/* Non-empty basic ASM implicitly clobbers memory.  */</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">TREE_STRING_LENGTH</span> <span class="p">(</span><span class="n">string</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="n">rtx</span> <span class="n">asm_op</span><span class="p">,</span> <span class="n">clob</span><span class="p">;</span>
+        <span class="kt">unsigned</span> <span class="n">i</span><span class="p">,</span> <span class="n">nclobbers</span><span class="p">;</span>
+        <span class="n">auto_vec</span><span class="o">&lt;</span><span class="n">rtx</span><span class="o">&gt;</span> <span class="n">input_rvec</span><span class="p">,</span> <span class="n">output_rvec</span><span class="p">;</span>
+        <span class="n">auto_vec</span><span class="o">&lt;</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*&gt;</span> <span class="n">constraints</span><span class="p">;</span>
+        <span class="n">auto_vec</span><span class="o">&lt;</span><span class="n">rtx</span><span class="o">&gt;</span> <span class="n">clobber_rvec</span><span class="p">;</span>
+        <span class="n">HARD_REG_SET</span> <span class="n">clobbered_regs</span><span class="p">;</span>
+        <span class="n">CLEAR_HARD_REG_SET</span> <span class="p">(</span><span class="n">clobbered_regs</span><span class="p">);</span>
+
+        <span class="n">clob</span> <span class="o">=</span> <span class="n">gen_rtx_MEM</span> <span class="p">(</span><span class="n">BLKmode</span><span class="p">,</span> <span class="n">gen_rtx_SCRATCH</span> <span class="p">(</span><span class="n">VOIDmode</span><span class="p">));</span>
+        <span class="n">clobber_rvec</span><span class="p">.</span><span class="n">safe_push</span> <span class="p">(</span><span class="n">clob</span><span class="p">);</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="n">targetm</span><span class="p">.</span><span class="n">md_asm_adjust</span><span class="p">)</span>
+            <span class="n">targetm</span><span class="p">.</span><span class="n">md_asm_adjust</span> <span class="p">(</span><span class="n">output_rvec</span><span class="p">,</span> <span class="n">input_rvec</span><span class="p">,</span> <span class="n">constraints</span><span class="p">,</span> <span class="n">clobber_rvec</span><span class="p">,</span> <span class="n">clobbered_regs</span><span class="p">);</span>
+
+        <span class="n">asm_op</span> <span class="o">=</span> <span class="n">body</span><span class="p">;</span>
+        <span class="n">nclobbers</span> <span class="o">=</span> <span class="n">clobber_rvec</span><span class="p">.</span><span class="n">length</span> <span class="p">();</span>
+        <span class="n">body</span> <span class="o">=</span> <span class="n">gen_rtx_PARALLEL</span> <span class="p">(</span><span class="n">VOIDmode</span><span class="p">,</span> <span class="n">rtvec_alloc</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">nclobbers</span><span class="p">));</span>
+
+        <span class="n">XVECEXP</span> <span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">=</span> <span class="n">asm_op</span><span class="p">;</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">nclobbers</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span>
+            <span class="n">XVECEXP</span> <span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">=</span> <span class="n">gen_rtx_CLOBBER</span> <span class="p">(</span><span class="n">VOIDmode</span><span class="p">,</span> <span class="n">clobber_rvec</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+    <span class="p">}</span>
+
+    <span class="n">emit_insn_after_setloc</span> <span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">loc</span><span class="p">,</span> <span class="n">INSN_LOCATION</span><span class="p">(</span><span class="n">loc</span><span class="p">));</span>
+<span class="p">}</span>
+
+<span class="cm">/**
+ * Take a basic block as input and seek the insn list until the function prologue
+ */</span>
+<span class="n">rtx_insn</span><span class="o">*</span> <span class="nf">seek_till_fn_prologue</span><span class="p">(</span><span class="n">basic_block</span> <span class="n">bb</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">rtx_insn</span> <span class="o">*</span><span class="n">tmp_rtx</span><span class="p">;</span>
+    
+    <span class="k">for</span> <span class="p">(</span><span class="n">tmp_rtx</span> <span class="o">=</span> <span class="n">BB_HEAD</span><span class="p">(</span><span class="n">bb</span><span class="p">);</span> <span class="n">tmp_rtx</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">tmp_rtx</span> <span class="o">=</span> <span class="n">NEXT_INSN</span> <span class="p">(</span><span class="n">tmp_rtx</span><span class="p">))</span>
+  	<span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span> <span class="p">(</span><span class="n">GET_CODE</span><span class="p">(</span><span class="n">tmp_rtx</span><span class="p">)</span> <span class="o">==</span> <span class="n">NOTE</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">NOTE_KIND</span> <span class="p">(</span><span class="n">tmp_rtx</span><span class="p">)</span> <span class="o">==</span> <span class="n">NOTE_INSN_FUNCTION_BEG</span><span class="p">))</span>
+            <span class="k">break</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="k">return</span> <span class="n">tmp_rtx</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="cm">/**
+ * Create a function call to '__profile' and insert it before the given stmt
+ */</span>
+<span class="k">static</span> <span class="kt">void</span> <span class="nf">insert_instrumentation_fn</span><span class="p">(</span><span class="n">basic_block</span> <span class="n">bb</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">char</span> <span class="n">opcodes</span><span class="p">[]</span> <span class="o">=</span> 
+                    <span class="p">{</span><span class="s">"\
+                        push %rdi </span><span class="se">\n</span><span class="s"> \
+                        lea 0x2(%rip), %rdi </span><span class="se">\n</span><span class="s"> \
+                        jmp "</span> <span class="n">FUNCTION_NAME</span> <span class="s">" </span><span class="se">\n</span><span class="s"> \
+                        pop %rdi \
+                    "</span><span class="p">};</span>
+
+    <span class="n">tree</span> <span class="n">string</span> <span class="o">=</span> <span class="n">build_string</span><span class="p">(</span><span class="n">strlen</span><span class="p">(</span><span class="n">opcodes</span><span class="p">),</span> <span class="n">opcodes</span><span class="p">);</span>
+
+    <span class="n">expand_asm_after</span><span class="p">(</span><span class="n">string</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">BB_HEAD</span><span class="p">(</span><span class="n">bb</span><span class="p">));</span>
+<span class="p">}</span>
+
+<span class="cm">/**
+ * For each function lookup attributes and attach profiling function
+ */</span>
+<span class="k">static</span> <span class="kt">unsigned</span> <span class="kt">int</span> <span class="nf">instrument_assignments_plugin_exec</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="c1">// get the FUNCTION_DECL of the function whose body we are reading</span>
+    <span class="n">tree</span> <span class="n">fndef</span> <span class="o">=</span> <span class="n">current_function_decl</span><span class="p">;</span>
+    
+    <span class="c1">// print the function name</span>
+    <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">"&gt; Inspecting function '%s'</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">FN_NAME</span><span class="p">(</span><span class="n">fndef</span><span class="p">));</span>
+
+    <span class="c1">// get the attributes list</span>
+    <span class="n">tree</span> <span class="n">attrlist</span> <span class="o">=</span> <span class="n">DECL_ATTRIBUTES</span><span class="p">(</span><span class="n">fndef</span><span class="p">);</span>
+
+    <span class="c1">// lookup into attribute list searcing for our registered attribute</span>
+    <span class="n">tree</span> <span class="n">attr</span> <span class="o">=</span> <span class="n">lookup_attribute</span><span class="p">(</span><span class="n">ATTRIBUTE_NAME</span><span class="p">,</span> <span class="n">attrlist</span><span class="p">);</span>
+
+    <span class="c1">// if the attribute is not present</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">attr</span> <span class="o">==</span> <span class="n">NULL_TREE</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+
+    <span class="c1">// attribute was in the list</span>
+    <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">"</span><span class="se">\t</span><span class="s"> attribute %s found! </span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">ATTRIBUTE_NAME</span><span class="p">);</span>
+
+    <span class="c1">// get function entry block</span>
+    <span class="n">basic_block</span> <span class="n">entry</span> <span class="o">=</span> <span class="n">ENTRY_BLOCK_PTR_FOR_FN</span><span class="p">(</span><span class="n">cfun</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">next_bb</span><span class="p">;</span>
+
+    <span class="c1">// warn the user we are adding a profiling function</span>
+    <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">"</span><span class="se">\t</span><span class="s"> adding function jump after RTL: "</span><span class="p">);</span>
+    <span class="n">print_rtl_single</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="n">BB_HEAD</span><span class="p">(</span><span class="n">entry</span><span class="p">));</span>
+    
+    <span class="c1">// insert the function</span>
+    <span class="n">insert_instrumentation_fn</span><span class="p">(</span><span class="n">entry</span><span class="p">);</span>
+
+    <span class="c1">// when debugging, shows the rtl outputted</span>
+    <span class="cp">#if DEBUG == 1
+</span>
+    <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">"</span><span class="se">\n</span><span class="s">&gt; --------------------- </span><span class="se">\n</span><span class="s">&gt; - RTL AFTER </span><span class="se">\n</span><span class="s">&gt; --------------------- </span><span class="se">\n\n</span><span class="s">"</span><span class="p">);</span>
+    <span class="n">print_rtl</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="n">BB_HEAD</span><span class="p">(</span><span class="n">entry</span><span class="p">));</span>
+
+    <span class="cp">#endif
+</span>
+    <span class="c1">// done!</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="cm">/** 
+ * Metadata for a pass, non-varying across all instances of a pass
+ * @see Declared in tree-pass.h
+ * @note Refer to tree-pass for docs about
+ */</span>
+<span class="k">struct</span> <span class="n">pass_data</span> <span class="n">ins_pass_data</span> <span class="o">=</span>
+<span class="p">{</span>
+    <span class="p">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">RTL_PASS</span><span class="p">,</span>                                       <span class="c1">// type of pass</span>
+    <span class="p">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">PLUGIN_NAME</span><span class="p">,</span>                                    <span class="c1">// name of plugin</span>
+    <span class="p">.</span><span class="n">optinfo_flags</span> <span class="o">=</span> <span class="n">OPTGROUP_NONE</span><span class="p">,</span>                         <span class="c1">// no opt dump</span>
+    <span class="p">.</span><span class="n">tv_id</span> <span class="o">=</span> <span class="n">TV_NONE</span><span class="p">,</span>                                       <span class="c1">// no timevar (see timevar.h)</span>
+    <span class="p">.</span><span class="n">properties_required</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>                               <span class="c1">// no prop in input</span>
+    <span class="p">.</span><span class="n">properties_provided</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>                               <span class="c1">// no prop in output</span>
+    <span class="p">.</span><span class="n">properties_destroyed</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>                              <span class="c1">// no prop removed</span>
+    <span class="p">.</span><span class="n">todo_flags_start</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>                                  <span class="c1">// need nothing before</span>
+    <span class="p">.</span><span class="n">todo_flags_finish</span> <span class="o">=</span> <span class="mi">0</span>                                  <span class="c1">// need nothing after</span>
+<span class="p">};</span>
+
+<span class="cm">/**
+ * Definition of our instrumentation RTL pass
+ * @note Extends rtl_opt_pass class
+ * @see Declared in tree-pass.h
+ */</span>
+<span class="n">class</span> <span class="n">ins_rtl_pass</span> <span class="o">:</span> <span class="n">public</span> <span class="n">rtl_opt_pass</span>
+<span class="p">{</span>
+<span class="nl">public:</span>
+
+    <span class="cm">/**
+     * Constructor
+     */</span>
+    <span class="n">ins_rtl_pass</span> <span class="p">(</span><span class="k">const</span> <span class="n">pass_data</span><span class="o">&amp;</span> <span class="n">data</span><span class="p">,</span> <span class="n">gcc</span><span class="o">::</span><span class="n">context</span> <span class="o">*</span><span class="n">ctxt</span><span class="p">)</span> <span class="o">:</span> <span class="n">rtl_opt_pass</span> <span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">ctxt</span><span class="p">)</span> <span class="p">{}</span>
+
+    <span class="cm">/**
+     * This and all sub-passes are executed only if the function returns true
+     * @note Defined in opt_pass father class
+     * @see Defined in tree-pass.h
+     */</span> 
+    <span class="n">bool</span> <span class="n">gate</span> <span class="p">(</span><span class="n">function</span><span class="o">*</span> <span class="n">gate_fun</span><span class="p">)</span> 
+    <span class="p">{</span>
+        <span class="k">return</span> <span class="nb">true</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="cm">/**
+     * This is the code to run when pass is executed
+     * @note Defined in opt_pass father class
+     * @see Defined in tree-pass.h
+     */</span>
+    <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">execute</span><span class="p">(</span><span class="n">function</span><span class="o">*</span> <span class="n">exec_fun</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">return</span> <span class="n">instrument_assignments_plugin_exec</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="c1">// instanciate a new instrumentation RTL pass</span>
+<span class="n">ins_rtl_pass</span> <span class="n">inst_pass</span> <span class="o">=</span> <span class="n">ins_rtl_pass</span><span class="p">(</span><span class="n">ins_pass_data</span><span class="p">,</span> <span class="n">g</span><span class="p">);</span>
+
+<span class="c1">// -----------------------------------------------------------------------------</span>
+<span class="c1">// PLUGIN INITIALIZATION</span>
+<span class="c1">// -----------------------------------------------------------------------------</span>
+
+<span class="cm">/**
+ * Initializes the plugin. Returns 0 if initialization finishes successfully. 
+ */</span>
+<span class="kt">int</span> <span class="nf">plugin_init</span><span class="p">(</span><span class="k">struct</span> <span class="n">plugin_name_args</span> <span class="o">*</span><span class="n">info</span><span class="p">,</span> <span class="k">struct</span> <span class="n">plugin_gcc_version</span> <span class="o">*</span><span class="n">ver</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="c1">// new pass that will be registered</span>
+    <span class="k">struct</span> <span class="n">register_pass_info</span> <span class="n">pass</span><span class="p">;</span>
+
+    <span class="c1">// this plugin is compatible only with specified base ver</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">strncmp</span><span class="p">(</span><span class="n">inst_plugin_ver</span><span class="p">.</span><span class="n">basever</span><span class="p">,</span> <span class="n">ver</span><span class="o">-&gt;</span><span class="n">basever</span><span class="p">,</span> <span class="n">strlen</span><span class="p">(</span><span class="n">ver</span><span class="o">-&gt;</span><span class="n">basever</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+
+    <span class="c1">// tell to GCC some info about this plugin</span>
+    <span class="n">register_callback</span><span class="p">(</span><span class="n">PLUGIN_NAME</span><span class="p">,</span> <span class="n">PLUGIN_INFO</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">inst_plugin_info</span><span class="p">);</span>
+
+    <span class="c1">// warn the user about the presence of this plugin</span>
+    <span class="n">printf</span><span class="p">(</span><span class="s">"&gt; Instrumentation plugin '%s @ %s' was loaded onto GCC</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">PLUGIN_NAME</span><span class="p">,</span> <span class="n">PLUGIN_VERSION</span><span class="p">);</span>
+
+    <span class="c1">// insert inst pass into the struct used to register the pass</span>
+    <span class="n">pass</span><span class="p">.</span><span class="n">pass</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">inst_pass</span><span class="p">;</span>
+
+    <span class="c1">// get called after Control flow graph cleanup (see RTL passes)  </span>
+    <span class="n">pass</span><span class="p">.</span><span class="n">reference_pass_name</span> <span class="o">=</span> <span class="s">"*free_cfg"</span><span class="p">;</span>
+
+    <span class="c1">// after the first opt pass to be sure opt will not throw away our stuff</span>
+    <span class="n">pass</span><span class="p">.</span><span class="n">ref_pass_instance_number</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="n">pass</span><span class="p">.</span><span class="n">pos_op</span> <span class="o">=</span> <span class="n">PASS_POS_INSERT_AFTER</span><span class="p">;</span>
+
+    <span class="c1">// add our pass hooking into pass manager</span>
+    <span class="n">register_callback</span><span class="p">(</span><span class="n">PLUGIN_NAME</span><span class="p">,</span> <span class="n">PLUGIN_PASS_MANAGER_SETUP</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">pass</span><span class="p">);</span>
+
+    <span class="c1">// get called at attribute registration</span>
+    <span class="n">register_callback</span><span class="p">(</span><span class="n">PLUGIN_NAME</span><span class="p">,</span> <span class="n">PLUGIN_ATTRIBUTES</span><span class="p">,</span> <span class="n">register_attributes</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>
+
+    <span class="c1">// everthing has worked</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Let’s try to compile it and compile the target program.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&gt; --------------------- 
+&gt; - RTL AFTER 
+&gt; --------------------- 
+(note 3 1 22 [bb 2] NOTE_INSN_BASIC_BLOCK)    # beginning of the function
+(insn 22 3 13 (parallel [
+            (asm_input/v ("...                # asm outputted
+(insn/f 13 22 14 (set (mem:DI (pre_dec:DI     # push %rbp
+...
+(note 16 15 2 NOTE_INSN_PROLOGUE_END)
+(note 2 16 5 NOTE_INSN_FUNCTION_BEG)
+...
+</code></pre></div></div>
+
+<p>It seems that it worked. Let’s check the disassembly, and let’s try it.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>0000000000001149 &lt;__inst_profile&gt;:
+    1149:	f3 0f 1e fa          	endbr64 
+    114d:	48 89 fb             	mov    %rdi,%rbx
+    1150:	48 8d 3d ad 0e 00 00 	lea    0xead(%rip),%rdi        # 2004 &lt;_IO_stdin_used+0x4&gt;
+    1157:	e8 f4 fe ff ff       	callq  1050 &lt;puts@plt&gt;
+    115c:	ff e3                	jmpq   *%rbx
+    115e:	90                   	nop
+    115f:	0f 0b                	ud2    
+
+0000000000001161 &lt;f1&gt;:
+    1161:	f3 0f 1e fa          	endbr64 
+    1165:	57                   	push   %rdi
+    1166:	48 8d 3d 02 00 00 00 	lea    0x2(%rip),%rdi        # 116f &lt;f1+0xe&gt;
+    116d:	eb da                	jmp    1149 &lt;__inst_profile&gt;
+    116f:	5f                   	pop    %rdi
+    1170:	55                   	push   %rbp
+    1171:	48 89 e5             	mov    %rsp,%rbp
+    1174:	c7 45 fc 05 00 00 00 	movl   $0x5,-0x4(%rbp)
+    117b:	83 45 fc 05          	addl   $0x5,-0x4(%rbp)
+    117f:	90                   	nop
+    1180:	5d                   	pop    %rbp
+    1181:	c3                   	retq   
+</code></pre></div></div>
+
+<p>Before the function prologue, the exact ASM opcode we wrote was outputted and then at <code class="language-plaintext highlighter-rouge">1170</code> starts the function prologue.</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span><span class="w"> </span>./bin
+<span class="go">I'm a target C program.
+Do something here!
+</span></code></pre></div></div>
+
+<p>Hooray! We got precisely the point! Now we can do whatever we want to instrument the program and maybe adding some consistency check or something.</p>
+
+<h2 id="4-documentation">4. <a name="Documentation"></a>Documentation</h2>
+
+<h3 id="41-bibliography--document-cited">4.1. <a name="Bibliographydocumentcited"></a>Bibliography &amp; document cited</h3>
+
+<ul>
+  <li>GCC Wiki - Plugins <a href="https://gcc.gnu.org/wiki/plugins">[1]</a></li>
+  <li><em>Matt Davis</em> - An introduction to creating GCC plugins <a href="https://lwn.net/Articles/457543/">[2]</a></li>
+  <li><em>Fabian Scherschel</em> - GCC 4.8 completes migration to C++ <a href="http://www.h-online.com/news/item/GCC-4-8-completes-migration-to-C-1824539.html">[3]</a></li>
+  <li><em>Chris von Eitzen</em> - GCC allows C++ – to some degree <a href="http://www.h-online.com/open/news/item/GCC-allows-C-to-some-degree-1012611.html">[4]</a></li>
+  <li><em>Mark Mitchell</em> - Using C++ in GCC is OK <a href="https://gcc.gnu.org/legacy-ml/gcc/2010-05/msg00705.html">[5]</a></li>
+  <li><em>David Malcolm</em> - Add -fno-rtti when building plugins <a href="https://gcc.gnu.org/legacy-ml/gcc-patches/2013-07/msg01258.html">[6]</a></li>
+  <li>GCC Online Docs - Options Controlling C++ Dialect <a href="https://gcc.gnu.org/onlinedocs/gcc-4.4.7/gcc/C_002b_002b-Dialect-Options.html">[7]</a></li>
+  <li><em>Sangwan Kwon</em> - An Overview of GCC <a href="http://bitboom.github.io/an-overview-of-gcc">[8]</a></li>
+  <li><em>Pop Sébastian</em> - AST representation in GCC <a href="http://icps.u-strasbg.fr/~pop/gcc-ast.html">[9]</a></li>
+  <li><em>Jens Vankeirsbilck</em> - CFED GCC Plugin <a href="https://github.com/MGroupKULeuvenBrugesCampus/CFED_Plugin">[10]</a></li>
+  <li><em>Uday Khedker</em> - Introduction to RTL <a href="https://www.cse.iitb.ac.in/~uday/courses/cs715-09/gcc-rtl.pdf">[11]</a></li>
+  <li>GCC Online Docs - Passes and Files of the Compiler <a href="https://gcc.gnu.org/onlinedocs/gccint/Passes.html">[12]</a></li>
+  <li>GCC Online Docs - RTL Object Types <a href="https://gcc.gnu.org/onlinedocs/gccint/RTL-Objects.html#RTL-Objects">[13]</a></li>
+  <li>GCC Online Docs - Side Effect Expressions <a href="https://gcc.gnu.org/onlinedocs/gccint/Side-Effects.html#Side-Effects">[14]</a></li>
+  <li>Wikipedia.org - System V AMD64 ABI <a href="https://en.wikipedia.org/wiki/X86_calling_conventions#System_V_AMD64_ABI">[15]</a></li>
+  <li><em>Ken Johnson</em> - Most data references in x64 are RIP-relative <a href="http://www.nynaeve.net/?p=192">[16]</a></li>
+</ul>
+
+<h2 id="5-disclaimer">5. <a name="Disclaimer"></a>Disclaimer</h2>
+
+<p>This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0 International License</a>.</p>
+
+<p>It basically means:</p>
+<ul>
+  <li>you <strong>can</strong> share and adapt</li>
+  <li>you <strong>must</strong> give credits and share at your turn</li>
+  <li>you <strong>don’t have</strong> warranties of any kind</li>
+</ul>
+
+<p>If you find something that you believe is written by you or under your property, or you want to contribute in some way (correct some error, add any section) don’t be shy and write to me! You can find all my contacts on the homepage.</p>
+
+    </div><a class="u-url" href="/blog/2020-08-27-an-introduction-to-gcc-and-gccs-plugins.html" hidden></a>
+
+  </div>
+
+</article>
+
+          </main>
+      </div>
+    </div><div class="ui-desktop">
+  <div class="ui-icon">
+      <div class="ui-icon-container">
+          <img src="/assets/img/recycle_bin_empty.png">
+          <span>Recycle Bin</span>
+      </div>
+  </div>
+  <div class="ui-icon">
+      <div class="ui-icon-container">
+          <img src="/assets/img/computer_explorer.png">
+          <span>Computer</span>
+      </div>
+  </div>
+  <div class="ui-icon">
+      <div class="ui-icon-container">
+          <img src="/assets/img/directory_closed.png">
+          <span>Documents</span>
+      </div>
+  </div>
+</div>
+<footer>
+  <div class="start-bar">
+    <a href="#" class="button start-button-wrapper">
+        <div class="start-button"></div>
+    </a>
+    <span class="start-bar-window">
+        <span class="windows-icon">
+            <img src="/assets/img/ie.png">
+        </span>
+        Gabriele Serra&#3...
+    </span>
+    <span class="start-bar-tray">
+        <span class="start-bar-tray-speaker">
+            <img src="/assets/img/speaker.ico">
+        </span>
+        <span class="start-bar-tray-clock"></span>
+    </span>
+  </div>
+</footer>
+</body>
+
+</html>

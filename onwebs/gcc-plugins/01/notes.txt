@@ -1,0 +1,8 @@
+
+gcc --version
+gcc -print-file-name=plugin # /usr/lib/gcc/x86_64-linux-gnu/7/plugin
+apt-get install gcc-7-plugin-dev
+
+
+
+
