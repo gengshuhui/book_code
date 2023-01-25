@@ -1,7 +1,14 @@
 
-gcc --version
+#ubuntu18
+gcc --version # gcc 7.5
 gcc -print-file-name=plugin # /usr/lib/gcc/x86_64-linux-gnu/7/plugin
 apt-get install gcc-7-plugin-dev
+
+#ubuntu20
+gcc --version # gcc 9.4
+apt-get install gcc-9-plugin-dev
+gcc -print-file-name=plugin # /usr/lib/gcc/x86_64-linux-gnu/9/plugin
+
 
 
 
