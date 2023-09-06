@@ -1,7 +1,12 @@
 *.swp
 .DS_Store
+*.so
 *.o
 *.elf
 *.exe
 *.obj
 *.log
+bazel-bin
+bazel-out
+bazel-testlogs
+bazel-*
