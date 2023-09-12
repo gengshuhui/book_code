@@ -1,5 +1,11 @@
 # Stage 1
 
+
+bazel build --config=clang_config //main:hello-world
+
+要点总结： - 您需要在命令行中指定 --crosstool_top 标志，该标志应指向 cc_toolchain_suite - 您可以使用 .bazelrc 文件为特定配置创建快捷方式 - cc_toolchain_suite 可能会针对不同的 CPU 和编译器列出 cc_toolchains。您可以使用命令行标记（例如 --cpu）来区分。
+
+---
 This showcases how to build a single file to create a runnable application.
 
 This BUILD file shows that we want to build a C++ binary using the ```cc_binary``` rule provided by Bazel.
