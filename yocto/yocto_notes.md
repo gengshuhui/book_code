@@ -23,7 +23,8 @@ main file path: `/data/poky/oe-init-build-env`
 ## 1.1 oe-buildenv-internal
 `scripts/oe-buildenv-internal`
 
-> 总结：导出关键变量：BBPATH PYTHONPATH BUILDDIR PATH BB_ENV_PASSTHROUGH_ADDITIONS集合，PATH中加入BB相关路径
+> 总结：导出关键变量：BBPATH PYTHONPATH BUILDDIR PATH BB_ENV_PASSTHROUGH_ADDITIONS集合;
+> PATH中加入BB相关路径:/data/poky/scripts:/data/poky/bitbake/bin:
 
 - 检查SKD/ADT是已经初始化过
     ```shell
@@ -34,7 +35,7 @@ main file path: `/data/poky/oe-init-build-env`
 - 检查 python版本
 - **export BBPATH**
     'declare -x BBPATH="/data/poky/build"'
-- **export PYTHONPATH**，将BB的lib目录加到PYTHONPATH   前面
+- **export PYTHONPATH**，将BB的lib目录加到 PYTHONPATH 前面
   ```
   PYTHONPATH=$BITBAKEDIR/lib:$PYTHONPATH
   declare -x PYTHONPATH="/data/poky/bitbake/lib:"
@@ -167,5 +168,4 @@ TEMPLATECONF="$TEMPLATECONF"  "$OEROOT"/scripts/oe-setup-builddir
 
 
 
-## 1.3 unset OEROOT
-/data/poky/scripts:/data/poky/bitbake/bin:
+## 1.3 unset OEROOT 并进入 build目录
