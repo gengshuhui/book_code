@@ -1,0 +1,35 @@
+
+# 5.1. Builder Methods Return Lists of Target Nodes
+f1_list = Object('file1.c')
+f2_list = Object('file2.c')
+
+hello_list = Object('hello.c', CCFLAGS='-DHELLO')
+
+Program(hello_list + f1_list)
+
+# 5.2. Explicitly Creating File and Directory Nodes
+
+goodbye_c = File('goodbye.c')
+Program(goodbye_c)
+
+# classes = Dir('classes')
+# Java(classes, 'src')
+# xyzzy = Entry('xyzzy')
+
+# 5.3. Printing Node File Names
+object_list = Object('goodbye.c')
+program_list = Program(object_list)
+print("5.3 The object file is: %s" % object_list[0])
+print("5.3 The program file is: %s" % program_list[0])
+
+# 5.4. Using a Node's File Name as a String
+import os.path
+program_list = Program('goodbye.c')
+program_name = str(program_list[0])
+if not os.path.exists(program_name):
+    print("5.4 %s does not exist!" % program_name)
+
+# 5.5. GetBuildPath: Getting the Path From a Node or String
+env=Environment(VAR="value")
+n=File("foo.c")
+print("5.5", env.GetBuildPath([n, "sub/dir/$VAR"]))

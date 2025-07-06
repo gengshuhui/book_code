@@ -2,22 +2,26 @@
 https://www.scons.org/doc/production/HTML/scons-user.html
 
 # Chapter 1. Building and Installing SCons
-# ```python3 -m pipx install scons```
+```
+python3 -m pipx install scons
+```
 
 # Chapter 2. Simple Builds
 ## 2.1. Building Simple C / C++ Programs
 ```
-pushd 2.1SimpleC
+# 常用命令
+scons -Q
 scons
 
 # clean build
-scons -c 
+scons -c
+
 # can not clean .sconsign.dblite
 ```
 
 ## 2.2. Building Object Files
 ```
-cd 2.2ObjectFiles
+Program('hello.c')
 ```
 
 
@@ -44,7 +48,9 @@ scons: done building targets.
 ```
 
 ## 2.6. Making the SCons Output Less Verbose
-```scons -Q```
+```
+scons -Q
+```
 
 # Chapter 3. Less Simple Things to Do With Builds
 ## 3.1. Specifying the Name of the Target (Output) File
@@ -56,7 +62,8 @@ Program('new_hello', 'hello.c')
 ```
 Program(['prog.c', 'file1.c', 'file2.c'],)
 ```
-the Result
+
+the Result is
 ```
 gcc -o file1.o -c file1.c
 gcc -o file2.o -c file2.c
@@ -65,7 +72,8 @@ gcc -o prog prog.o file1.o file2.o
 ```
 
 ## 3.3. Making a list of files with Glob
-```Program('program', Glob('*.c'))
+```
+Program('program', Glob('*.c'))
 ```
 
 ## 3.6. Keyword Arguments
@@ -125,3 +133,7 @@ scons: done building targets.
 export LD_LIBRARY_PATH=.
 ./prog
 ```
+
+# Chapter 5. Node Objects
+## 5.1. Builder Methods Return Lists of Target Nodes
+
