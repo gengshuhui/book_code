@@ -1,0 +1,2 @@
+Program('hello.c', CPPPATH='.')
+Program('hello_1', 'hello.c', CPPPATH=['include', '.'])

@@ -1,0 +1,18 @@
+Program('hello.c', CPPPATH='.')
+# scons -Q hello.c
+
+# change hello.h 
+# scons -Q hello.c # 并没有重新编译
+# scons: `hello' is up to date.
+
+
+obj = Object('goodbye.c', CCFLAGS='-MD -MF goodbye.d', CPPPATH='.')
+SideEffect('goodbye.d', obj)
+ParseDepends('goodbye.d')
+Program('goodbye', obj)
+      
+# scons goodbye -Q --debug=explain
+
+# scons: rebuilding `goodbye.o' because `hello.h' changed
+# gcc -o goodbye.o -c -MD -MF goodbye.d -I. goodbye.c
+# scons: `goodbye' is up to date.

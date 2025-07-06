@@ -130,6 +130,7 @@ gcc -o prog.o -c prog.c
 gcc -o prog prog.o -L. -lsfile -ldfile
 scons: done building targets.
 ```
+```
 export LD_LIBRARY_PATH=.
 ./prog
 ```
@@ -151,3 +152,66 @@ todo:
 todo:
 
 ## 6.2. Implicit Dependencies: The $CPPPATH Construction Variable
+
+## 6.3. Caching Implicit Dependencies
+只使用上一次构建的隐式依赖关系，新增加同名文件也不会检测出来---慎用
+
+SCons will ignore any changes that may have been made to search paths (like $CPPPATH or $LIBPATH). 
+```
+scons -Q --implicit-cache 
+```
+set as defult 
+```
+SetOption('implicit_cache', 1)
+```
+
+### 6.3.1. The --implicit-deps-changed Option
+重新扫描
+```
+scons -Q --implicit-deps-changed
+```
+### 6.3.2. The --implicit-deps-unchanged Option
+在你知道更改了代码也不影响 结果的情况下使用（如改了源文件，但没有改include行）
+```
+scons -Q ----implicit-deps-unchanged
+```
+
+## 6.4. Explicit Dependencies: the Depends Function
+```
+hello = Program('hello.c')
+goodbye = Program('goodbye.c')
+Depends(hello, goodbye)
+```
+
+修改goodbye.C
+```
+scons -Q hello
+```
+结果：
+```
+gcc -o goodbye.o -c goodbye.c
+scons: `hello' is up to date.
+```
+
+## 6.5. Dependencies From External Files: the ParseDepends Function
+处理SCons的built-in C scanner不能提取出隐式头文件依赖关系的场景，如：
+```
+#define FOO_HEADER <hello.h>
+#include FOO_HEADER
+
+int main() {
+    return FOO;
+}
+```
+
+`scons goodbye -Q --debug=explain`
+
+change  hello.h
+
+`scons goodbye -Q --debug=explain`
+
+```
+scons: rebuilding `goodbye.o' because `hello.h' changed
+gcc -o goodbye.o -c -MD -MF goodbye.d -I. goodbye.c
+scons: `goodbye' is up to date.
+```
