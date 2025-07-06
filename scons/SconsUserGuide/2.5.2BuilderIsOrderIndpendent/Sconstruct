@@ -1,0 +1,4 @@
+print("Reading SConstruct file hello.c")
+Program('hello.c')
+print("Reading SConstruct file goodbye.c")
+Program('goodbye.c')
