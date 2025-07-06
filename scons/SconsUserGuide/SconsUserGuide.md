@@ -215,3 +215,29 @@ scons: rebuilding `goodbye.o' because `hello.h' changed
 gcc -o goodbye.o -c -MD -MF goodbye.d -I. goodbye.c
 scons: `goodbye' is up to date.
 ```
+
+## 6.6. Ignoring Dependencies: the Ignore Function
+```
+hello_obj=Object('hello.c')
+hello = Program(hello_obj)
+Ignore('.',[hello,hello_obj])
+```
+不指定目录，修改hello.c不会重新构建
+```
+gcc -o hello.o -c hello.c
+gcc -o hello hello.o
+
+# change hello.c
+scons -Q
+scons: `.' is up to date.
+```
+
+指定具体目标构建还是会构建的
+```
+scons -Q hello
+gcc -o hello.o -c hello.c
+
+# change hello.c
+scons -Q hello
+scons: `hello' is up to date.
+```
