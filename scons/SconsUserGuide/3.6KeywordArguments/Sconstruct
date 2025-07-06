@@ -1,0 +1,17 @@
+Program(target='program', source=Glob('*.c'))
+src_files = Glob('*.c')
+Program(target='program_1', source=src_files)
+
+src_files = ['prog.c', 'file1.c', 'file2.c']
+Program(target='program_2', source=src_files)
+
+src_files = Split('prog.c file1.c file2.c')
+Program(target='program_3', source=src_files)
+
+src_files = Split("""
+    prog.c
+    file1.c
+    file2.c
+""")
+Program('program_4', src_files)
+    

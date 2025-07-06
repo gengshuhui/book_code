@@ -65,3 +65,48 @@ gcc -o prog prog.o file1.o file2.o
 ```
 
 ## 3.3. Making a list of files with Glob
+```Program('program', Glob('*.c'))
+```
+
+## 3.6. Keyword Arguments
+```
+Program(target='program', source=Glob('*.c'))
+src_files = Glob('*.c')
+Program(target='program_1', source=src_files)
+
+src_files = ['prog.c', 'file1.c', 'file2.c']
+Program(target='program_2', source=src_files)
+
+src_files = Split('prog.c file1.c file2.c')
+Program(target='program_3', source=src_files)
+
+src_files = Split("""
+    prog.c
+    file1.c
+    file2.c
+""")
+Program('program_4', src_files)
+  
+```
+
+## 3.8. Sharing Source Files Between Multiple Programs
+```
+src_files = Split('hello.c file1.c file2.c')
+Program(target='hello', source=src_files)
+
+src_files = Split('goodbye.c file1.c file2.c')
+Program(target='goodbye', source=src_files)
+```
+
+the result is
+```
+gcc -o file1.o -c file1.c
+gcc -o file2.o -c file2.c
+gcc -o goodbye.o -c goodbye.c
+gcc -o goodbye goodbye.o file1.o file2.o
+gcc -o hello.o -c hello.c
+gcc -o hello hello.o file1.o file2.o
+```
+
+# Chapter 4. Building and Linking with Libraries
+## 4.1. Building Libraries

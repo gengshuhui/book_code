@@ -1,0 +1,7 @@
+
+src_files = Split('hello.c file1.c file2.c')
+Program(target='hello', source=src_files)
+
+src_files = Split('goodbye.c file1.c file2.c')
+Program(target='goodbye', source=src_files)
+
