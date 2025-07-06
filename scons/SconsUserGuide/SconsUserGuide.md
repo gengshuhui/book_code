@@ -137,3 +137,17 @@ export LD_LIBRARY_PATH=.
 # Chapter 5. Node Objects
 ## 5.1. Builder Methods Return Lists of Target Nodes
 
+# Chapter 6. Dependencies
+## 6.1. Deciding When an Input File Has Changed: the Decider Function
+### 6.1.1. Using Content Signatures to Decide if a File Has Changed
+### 6.1.2. Using Time Stamps to Decide If a File Has Changed
+### 6.1.3. Deciding If a File Has Changed Using Both MD Signatures and Time Stamps
+todo:
+
+### 6.1.4. Extending SCons: Writing Your Own Custom Decider Function
+todo:
+
+### 6.1.5. Mixing Different Ways of Deciding If a File Has Changed
+todo:
+
+## 6.2. Implicit Dependencies: The $CPPPATH Construction Variable

@@ -1,0 +1,3 @@
+Program('hello.c')
+Decider('timestamp-newer')
+# touch hecllo.c and run scons again
