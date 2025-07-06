@@ -110,3 +110,18 @@ gcc -o hello hello.o file1.o file2.o
 
 # Chapter 4. Building and Linking with Libraries
 ## 4.1. Building Libraries
+## 4.2. Linking with Libraries
+
+```
+gcc -o file1.o -c file1.c
+gcc -o file2.os -c -fPIC file2.c
+gcc -o libdfile.so -shared file2.os
+ar rc libsfile.a file1.o
+ranlib libsfile.a
+gcc -o prog.o -c prog.c
+gcc -o prog prog.o -L. -lsfile -ldfile
+scons: done building targets.
+```
+export LD_LIBRARY_PATH=.
+./prog
+```

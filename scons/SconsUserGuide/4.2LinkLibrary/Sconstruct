@@ -1,0 +1,6 @@
+
+StaticLibrary(target='sfile', source='file1.c')
+
+SharedLibrary(target='dfile', source='file2.c')
+
+Program(target='prog', source=['prog.c',], LIBS=['sfile', 'dfile'], LIBPATH='.')

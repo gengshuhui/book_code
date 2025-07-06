@@ -1,0 +1,8 @@
+
+src_files = Split('file1.c file2.c')
+Library('sfile', src_files)
+Library(target='sfile_1', source=src_files)
+StaticLibrary(target='sfile_2', source=src_files)
+
+SharedLibrary('dfile_3', source=src_files)
+SharedLibrary(target='dfile_4', source=src_files)
