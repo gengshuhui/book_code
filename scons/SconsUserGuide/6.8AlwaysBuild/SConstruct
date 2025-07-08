@@ -1,0 +1,2 @@
+hello = Program('hello.c')
+AlwaysBuild(hello)

@@ -1,0 +1,22 @@
+env = Environment(CC='gcc', CCFLAGS='-O2')
+env.Program('hello.c')
+
+# Fetch values from the construction environment
+print("XXX is: %s" % env.get('XXX', None))
+print("CC is: %s" % env['CC'])
+
+# Print the environment variables
+print(env.Dump())
+
+# Print all construction variables and their values
+for item in sorted(env.Dictionary().items()):
+    print("construction variable = '%s', value = '%s'" % item)
+
+# Print specific construction variables
+cvars = env.Dictionary()
+for key in ['OBJSUFFIX', 'LIBSUFFIX', 'PROGSUFFIX']:
+    print("key = %s, value = %s" % (key, cvars[key]))
+
+
+
+

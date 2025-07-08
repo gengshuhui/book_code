@@ -365,4 +365,61 @@ gcc -o version.o -c version.c
 scons: `goodbye' is up to date.
 ```
 
+## 6.8. The AlwaysBuild Function
+- 确保某个目标在每次构建时都被构建，无论其依赖关系是否已满足。
+- 只影响目标本身的构建，而不影响其依赖关系的构建。
+
+```
+hello = Program('hello.c')
+AlwaysBuild(hello)
+```
+
+```
+# scons -Q
+gcc -o hello.o -c hello.c
+gcc -o hello hello.o
+
+# scons -Q
+gcc -o hello hello.o
+
+# scons -Q hello.o
+scons: `hello.o' is up to date.
+```
+
+# Chapter 7. Environments
+- External Environment  外部环境: 
+  > 用户运行 SCons 时其环境中已有的一组变量。这些变量不会自动成为 SCons 构建的一部分，但可以根据需要进行检查
+- Construction Environment 
+  > 在 SConscript 文件中创建的一个独立对象
+- Execution Environment  执行环境
+  > SCons 在执行外部命令（例如编译器或链接器）时设置的值
+
+> 与 Make 不同， SCons 不会自动在不同环境之间复制或导入值（ 构造环境的显式克隆除外， 它们从其父级继承值）,避免了构建过程中出现的一系列问题环境不一致问题.
+>  SConscript 编写器可以轻松地安排在环境之间复制或导入变量,构建系统的实现者 做出有意识的选择 关于如何以及何时导入 从一个环境到另一个环境的变量
+
+## 7.1. Using Values From the External Environment
+> Python os.environ 字典中找到
+
+## 7.2. Construction Environments
+> SCons 允许你创建和配置多个构造环境来控制软件的构建方式，从而满足不同的构建需求
+
+### 7.2.1. 创建构造环境 ： Environment 函数
+
+```
+env = Environment()
+```
+每个新的构建环境由两部分组成:
+- 根据它在你的系统上找到的工具构造一组变量
+- 默认的构建器方法集
+
+构造环境时可以指定一组变量来覆盖默认值或添加新变量
+```
+env = Environment(CC='gcc', CCFLAGS='-O2')
+env.Program('hello.c')
+```
+
+```
+gcc -o hello.o -c -O2 hello.c
+gcc -o hello hello.o
+```
 
