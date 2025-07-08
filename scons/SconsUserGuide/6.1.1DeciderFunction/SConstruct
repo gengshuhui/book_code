@@ -1,5 +1,5 @@
 # 6.1.1.1. Ramifications of Using Content Signatures
-# 基于内容的签名当前验证不生效，改变C文件注释后，还是会重新编译。
+# 基于内容的签名当前验证不生效，改变C文件注释后，还是会重新编译，与预期不符。
 
 Program('hello.c')
 Decider('content')

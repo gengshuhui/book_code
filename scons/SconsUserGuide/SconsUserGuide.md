@@ -121,6 +121,12 @@ gcc -o hello hello.o file1.o file2.o
 ## 4.2. Linking with Libraries
 
 ```
+StaticLibrary(target='sfile', source='file1.c')
+SharedLibrary(target='dfile', source='file2.c')
+Program(target='prog', source=['prog.c',], LIBS=['sfile', 'dfile'], LIBPATH='.')
+```
+
+```
 gcc -o file1.o -c file1.c
 gcc -o file2.os -c -fPIC file2.c
 gcc -o libdfile.so -shared file2.os
@@ -136,7 +142,57 @@ export LD_LIBRARY_PATH=.
 ```
 
 # Chapter 5. Node Objects
-## 5.1. Builder Methods Return Lists of Target Nodes
+```
+
+# 5.1. Builder Methods Return Lists of Target Nodes
+f1_list = Object('file1.c')
+f2_list = Object('file2.c')
+
+hello_list = Object('hello.c', CCFLAGS='-DHELLO')
+
+Program(hello_list + f1_list)
+
+# 5.2. Explicitly Creating File and Directory Nodes
+
+goodbye_c = File('goodbye.c')
+Program(goodbye_c)
+
+# classes = Dir('classes')
+# Java(classes, 'src')
+# xyzzy = Entry('xyzzy')
+
+# 5.3. Printing Node File Names
+object_list = Object('goodbye.c')
+program_list = Program(object_list)
+print("5.3 The object file is: %s" % object_list[0])
+print("5.3 The program file is: %s" % program_list[0])
+
+# 5.4. Using a Node's File Name as a String
+import os.path
+program_list = Program('goodbye.c')
+program_name = str(program_list[0])
+if not os.path.exists(program_name):
+    print("5.4 %s does not exist!" % program_name)
+
+# 5.5. GetBuildPath: Getting the Path From a Node or String
+env=Environment(VAR="value")
+n=File("foo.c")
+print("5.5", env.GetBuildPath([n, "sub/dir/$VAR"]))
+```
+
+```
+5.3 The object file is: goodbye.o
+5.3 The program file is: goodbye
+5.4 goodbye does not exist!
+5.5 ['foo.c', 'sub/dir/value']
+gcc -o file1.o -c file1.c
+gcc -o file2.o -c file2.c
+gcc -o goodbye.o -c goodbye.c
+gcc -o goodbye goodbye.o
+gcc -o hello.o -c -DHELLO hello.c
+gcc -o hello hello.o file1.o
+```
+
 
 # Chapter 6. Dependencies
 ## 6.1. Deciding When an Input File Has Changed: the Decider Function
@@ -152,31 +208,53 @@ todo:
 todo:
 
 ## 6.2. Implicit Dependencies: The $CPPPATH Construction Variable
+- 头文件依赖变化时,SCons会自动重新构建目标文件
+
+```
+#include <stdio.h>
+#include <hello.h>
+int main()
+{
+    printf("Hello, %s!\n", string);
+}
+```
+
+
+```
+Program('hello.c', CPPPATH='.')
+Program('hello_1', 'hello.c', CPPPATH=['include', '.'])
+```
+
 
 ## 6.3. Caching Implicit Dependencies
-只使用上一次构建的隐式依赖关系，新增加同名文件也不会检测出来---慎用
+- 只使用上一次构建的隐式依赖关系, 新增加同名文件也不会检测出来---慎用
+- SCons will ignore any changes that may have been made to search paths (like $CPPPATH or $LIBPATH). 
 
-SCons will ignore any changes that may have been made to search paths (like $CPPPATH or $LIBPATH). 
 ```
 scons -Q --implicit-cache 
 ```
-set as defult 
+
+- 设置成默认值
 ```
 SetOption('implicit_cache', 1)
 ```
 
 ### 6.3.1. The --implicit-deps-changed Option
-重新扫描
+- 重新扫描之前缓存的隐式依赖
+
 ```
 scons -Q --implicit-deps-changed
 ```
 ### 6.3.2. The --implicit-deps-unchanged Option
-在你知道更改了代码也不影响 结果的情况下使用（如改了源文件，但没有改include行）
+- 在你知道更改了代码也不影响 结果的情况下使用(如改了源文件,但没有改include行)
+
 ```
 scons -Q ----implicit-deps-unchanged
 ```
 
 ## 6.4. Explicit Dependencies: the Depends Function
+- 一个文件依赖于另一个未被 SCons 扫描器检测到的文件
+
 ```
 hello = Program('hello.c')
 goodbye = Program('goodbye.c')
@@ -187,14 +265,16 @@ Depends(hello, goodbye)
 ```
 scons -Q hello
 ```
-结果：
+
+结果
 ```
 gcc -o goodbye.o -c goodbye.c
 scons: `hello' is up to date.
 ```
 
 ## 6.5. Dependencies From External Files: the ParseDepends Function
-处理SCons的built-in C scanner不能提取出隐式头文件依赖关系的场景，如：
+- 处理SCons的built-in C scanner不能提取出隐式头文件依赖关系的场景，如：
+
 ```
 #define FOO_HEADER <hello.h>
 #include FOO_HEADER
@@ -217,6 +297,8 @@ scons: `goodbye' is up to date.
 ```
 
 ## 6.6. Ignoring Dependencies: the Ignore Function
+- 多个系统之间共享的目录 拥有不同的副本 stdio.h 包含文件，如果不想让SCons跟踪某个文件或目录的更改，可以使用Ignore函数。
+- 阻止动态生成的文件被默认构建
 ```
 hello_obj=Object('hello.c')
 hello = Program(hello_obj)
@@ -241,3 +323,46 @@ gcc -o hello.o -c hello.c
 scons -Q hello
 scons: `hello' is up to date.
 ```
+
+## 6.7. Order-Only Dependencies: the AlwaysBuild Function
+- 指定某个文件/目录必在构建其他目标之前构建或创建，但对该文件/目录的更改不会要求重建目标本身
+
+```
+import time
+
+version_c_text = """
+char *date = "%s";
+""" % time.ctime(time.time())
+open('version.c', 'w').write(version_c_text)
+
+hello = Program(['hello.c', 'version.c'])
+
+# ----------------------------
+version_obj = Object('version.c')
+goodbye = Program('goodbye.c',
+                LINKFLAGS = str(version_obj[0]))
+
+Requires(goodbye, version_obj)
+```
+结果：
+```
+# scons -Q hello
+gcc -o hello.o -c hello.c
+gcc -o version.o -c version.c
+gcc -o hello hello.o version.o
+
+# scons -Q hello
+gcc -o version.o -c version.c
+gcc -o hello hello.o version.o
+
+# scons -Q goodbye
+gcc -o version.o -c version.c
+gcc -o goodbye.o -c goodbye.c
+gcc -o goodbye version.o goodbye.o
+
+# scons -Q goodbye
+gcc -o version.o -c version.c
+scons: `goodbye' is up to date.
+```
+
+
