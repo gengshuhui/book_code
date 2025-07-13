@@ -1,0 +1,16 @@
+env = Environment()
+print("1 value is:", env.subst('->$MISSING<-'))
+
+
+AllowSubstExceptions(IndexError, NameError, ZeroDivisionError)
+env = Environment()
+print("2 value is:",  env.subst('->${1 / 0}<-'))
+
+# 如果多次调用 AllowSubstExceptions ，则每次调用 完全覆盖先前允许的例外列表。
+
+# 不带参数遇到异常即停止 scons,下面的打印会异常
+AllowSubstExceptions()
+env = Environment()
+print("3 value is:", env.subst('->$MISSING<-'))
+
+

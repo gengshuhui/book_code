@@ -1,0 +1,9 @@
+env = Environment()
+print("CC is: %s" % env.subst('$CC'))
+
+env = Environment(CCFLAGS='-DFOO')
+print("CCCOM is:", env['CCCOM'])
+
+# 调用 subst 方法将递归扩展所有以 $ （美元符号）为前缀的构造变量 
+env = Environment(CCFLAGS='-DFOO')
+print("CCCOM is:", env.subst('$CCCOM'))

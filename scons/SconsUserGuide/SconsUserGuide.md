@@ -423,3 +423,79 @@ gcc -o hello.o -c -O2 hello.c
 gcc -o hello hello.o
 ```
 
+### 7.2.3. 从构造环境中扩展值： subst 方法
+```
+env = Environment(CCFLAGS='-DFOO')
+print("CCCOM is:", env['CCCOM'])
+
+# 调用 subst 方法将递归扩展所有以 $ （美元符号）为前缀的构造变量 
+env = Environment(CCFLAGS='-DFOO')
+print("CCCOM is:", env.subst('$CCCOM'))
+```
+
+结果:
+```
+CC is: gcc
+CCCOM is: $CC -o $TARGET -c $CFLAGS $CCFLAGS $_CCCOMCOM $SOURCES
+CCCOM is: gcc -o -c -DFOO
+scons: `.' is up to date.
+```
+
+### 7.2.4 处理值扩展问题（高级主题）
+```
+env = Environment()
+print("1 value is:", env.subst('->$MISSING<-'))
+
+
+AllowSubstExceptions(IndexError, NameError, ZeroDivisionError)
+env = Environment()
+print("2 value is:",  env.subst('->${1 / 0}<-'))
+
+# 如果多次调用 AllowSubstExceptions ，则每次调用 完全覆盖先前允许的例外列表。
+
+# 不带参数遇到异常即停止 scons,下面的打印会异常
+AllowSubstExceptions()
+env = Environment()
+print("3 value is:", env.subst('->$MISSING<-'))
+```
+结果:
+```
+1 value is: -><-
+2 value is: -><-
+
+scons: *** NameError `name 'MISSING' is not defined' trying to evaluate `$MISSING'
+File "/data/book_code/scons/SconsUserGuide/7.2.4HandProbWithValueException/SConstruct", line 13, in <module>
+```
+
+### 7.2.5 控制默认构造环境 ： DefaultEnvironment 函数
+```
+# 默认构造环境该构造环境包含 SCons 默认配置的各种编译器和其他工具的设置，或者以其他方式在您的系统上发现并识别这些工具。
+# 该环境的默认设置通常足以编译大多数 C/C++ 程序。
+# DefaultEnvironment 函数返回已初始化的默认构造环境对象，
+# （注意，默认环境的工作方式类似于单例 - 它只能有一个实例）
+# 函数的一个非常常见的用途是加速 SCons 初始化，一旦初始化，后面就不再搜索了
+def_env = DefaultEnvironment()
+print("0 CC is:", def_env['CC'])
+
+def_env = DefaultEnvironment(CC='/usr/local/bin/gcc')
+print("1 CC is:", def_env['CC'])
+
+def_env = DefaultEnvironment()
+print("2 CC is:", def_env['CC'])
+
+def_env['CC'] = '/usr/local/bin/gcc_1'
+print("3 CC is:", def_env['CC'])
+
+def_env = DefaultEnvironment()
+print("4 CC is:", def_env['CC'])
+```
+
+结果:
+```
+0 CC is: gcc
+1 CC is: gcc
+2 CC is: gcc
+3 CC is: /usr/local/bin/gcc_1
+4 CC is: /usr/local/bin/gcc_1
+scons: `.' is up to date.
+```

@@ -10,7 +10,7 @@ print(env.Dump())
 
 # Print all construction variables and their values
 for item in sorted(env.Dictionary().items()):
-    print("construction variable = '%s', value = '%s'" % item)
+    print("CV::'%s': '%s'" % item)
 
 # Print specific construction variables
 cvars = env.Dictionary()

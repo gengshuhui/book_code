@@ -1,0 +1,19 @@
+# 默认构造环境该构造环境包含 SCons 默认配置的各种编译器和其他工具的设置，或者以其他方式在您的系统上发现并识别这些工具。
+# 该环境的默认设置通常足以编译大多数 C/C++ 程序。
+# DefaultEnvironment 函数返回已初始化的默认构造环境对象，
+# （注意，默认环境的工作方式类似于单例 - 它只能有一个实例）
+# 函数的一个非常常见的用途是加速 SCons 初始化，一旦初始化，后面就不再搜索了
+def_env = DefaultEnvironment()
+print("0 CC is:", def_env['CC'])
+
+def_env = DefaultEnvironment(CC='/usr/local/bin/gcc')
+print("1 CC is:", def_env['CC'])
+
+def_env = DefaultEnvironment()
+print("2 CC is:", def_env['CC'])
+
+def_env['CC'] = '/usr/local/bin/gcc_1'
+print("3 CC is:", def_env['CC'])
+
+def_env = DefaultEnvironment()
+print("4 CC is:", def_env['CC'])
