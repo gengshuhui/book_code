@@ -499,3 +499,107 @@ print("4 CC is:", def_env['CC'])
 4 CC is: /usr/local/bin/gcc_1
 scons: `.' is up to date.
 ```
+
+### 7.2.6 多个构造环境
+```
+opt = Environment(CCFLAGS='-O2')
+dbg = Environment(CCFLAGS='-g')
+
+o = opt.Object('hello-opt', 'hello.c')
+opt.Program(o)
+
+d = dbg.Object('hello-dbg', 'hello.c')
+dbg.Program(d)
+```
+结果:
+```
+gcc -o hello-dbg.o -c -g hello.c
+gcc -o hello-dbg hello-dbg.o
+gcc -o hello-opt.o -c -O2 hello.c
+gcc -o hello-opt hello-opt.o
+```
+
+### 7.2.7 克隆构造环境
+```
+env = Environment(CC='gcc')
+opt = env.Clone(CCFLAGS='-O2')
+dbg = env.Clone(CCFLAGS='-g')
+
+o = opt.Object('hello-opt', 'hello.c')
+opt.Program(o)
+
+d = dbg.Object('hello-dbg', 'hello.c')
+dbg.Program(d)
+```
+结果:
+```
+gcc -o hello-dbg.o -c -g hello.c
+gcc -o hello-dbg hello-dbg.o
+gcc -o hello-opt.o -c -O2 hello.c
+gcc -o hello-opt hello-opt.o
+```
+
+### 7.2.8 替换值： Replace 方法
+```
+env = Environment(CCFLAGS='-DDEFINE1')
+print("CCFLAGS = %s" % env['CCFLAGS'])
+env.Program('hello.c')
+
+env.Replace(CCFLAGS='-DDEFINE2')
+print("CCFLAGS = %s" % env['CCFLAGS'])
+env.Program('goodbye.c')
+
+# 读取 SConscript 文件时发生替换为不同的值, 但构建目标时却是最终的值 DEFINE2（相同的env）
+# 因为变量直到实际使用构造环境来构建目标时才会展开，并且因为 SCons 函数和方法调用 与顺序无关， 最后一个替换者“获胜” 并用于构建所有目标
+```
+结果:
+```
+scons: Reading SConscript files ...
+CCFLAGS = -DDEFINE1
+CCFLAGS = -DDEFINE2
+scons: done reading SConscript files.
+scons: Building targets ...
+gcc -o goodbye.o -c -DDEFINE2 goodbye.c
+gcc -o goodbye goodbye.o
+gcc -o hello.o -c -DDEFINE2 hello.c
+gcc -o hello hello.o
+scons: done building targets.
+```
+多个替换值可以这样写
+```
+newvalues = {
+    "F77PATH": ['foo', '$FOO/bar', blat],
+    "INCPREFIX": 'foo ',
+    "INCSUFFIX": 'bar',
+    "FOO": 'baz',
+}
+env.Replace(**newvalues)
+```
+
+### 7.2.9 仅当值尚未定义时才设置值： SetDefault 方法
+
+```
+# 仅当构造环境尚未定义该变量时，才能够指定构造变量应设置为某个值
+# 这在编写自己的 Tool 模块以将变量应用于构造环境时特别有用。
+env.SetDefault(SPECIAL_FLAG='-extra-option')
+```
+
+### 7.2.10 附加到值的末尾： Append 方法
+```
+env = Environment(CPPDEFINES=['MY_VALUE'])
+env.Append(CPPDEFINES=['LAST'])
+env.Program('hello.c')
+
+# 如果构造变量尚不存在， Append 方法将创建它：
+env.Append(NEW_VARIABLE = 'added')
+print("NEW_VARIABLE = %s"%env['NEW_VARIABLE'])
+```
+结果：
+```
+NEW_VARIABLE = added
+gcc -o hello.o -c -DMY_VALUE -DLAST hello.c
+gcc -o hello hello.o
+```
+
+### 7.2.11 附加唯一值： AppendUnique 方法
+

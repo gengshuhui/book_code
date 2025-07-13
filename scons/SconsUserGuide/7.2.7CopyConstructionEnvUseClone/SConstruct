@@ -1,0 +1,9 @@
+env = Environment(CC='gcc')
+opt = env.Clone(CCFLAGS='-O2')
+dbg = env.Clone(CCFLAGS='-g')
+
+o = opt.Object('hello-opt', 'hello.c')
+opt.Program(o)
+
+d = dbg.Object('hello-dbg', 'hello.c')
+dbg.Program(d)

@@ -1,0 +1,8 @@
+env = Environment(CPPDEFINES=['MY_VALUE'])
+env.Append(CPPDEFINES=['LAST'])
+env.Program('hello.c')
+
+# 如果构造变量尚不存在， Append 方法将创建它：
+env.Append(NEW_VARIABLE = 'added')
+print("NEW_VARIABLE = %s"%env['NEW_VARIABLE'])
+   

@@ -1,0 +1,4 @@
+# 仅当构造环境尚未定义该变量时，才能够指定构造变量应设置为某个值
+# 这在编写自己的 Tool 模块以将变量应用于构造环境时特别有用。
+
+env.SetDefault(SPECIAL_FLAG='-extra-option')

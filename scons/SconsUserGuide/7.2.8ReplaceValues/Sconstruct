@@ -1,0 +1,10 @@
+env = Environment(CCFLAGS='-DDEFINE1')
+print("CCFLAGS = %s" % env['CCFLAGS'])
+env.Program('hello.c')
+
+env.Replace(CCFLAGS='-DDEFINE2')
+print("CCFLAGS = %s" % env['CCFLAGS'])
+env.Program('goodbye.c')
+
+# 读取 SConscript 文件时发生替换为不同的值, 但构建目标时却是最终的值 DEFINE2（相同的env）
+# 因为变量直到实际使用构造环境来构建目标时才会展开，并且因为 SCons 函数和方法调用 与顺序无关， 最后一个替换者“获胜” 并用于构建所有目标
